@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { pinyin } = require('pinyin-pro');
 
 const app = express();
 app.use(cors());
@@ -10,6 +11,33 @@ app.use(express.static('.'));
 
 app.post('/correct', async (req, res) => {
   const { apiKey, model, indexed, cmd } = req.body;
+
+  // 生成拼音輔助資訊
+  const getPinyin = (text) => pinyin(text, { toneType: 'num' });
+  
+  // 從 indexed 格式 "[0:我][1:的]" 提取純文字並轉拼音
+  const extractAndPinyin = (indexedStr) => {
+    const matches = indexedStr.match(/\[(\d+):(.+?)\]/g) || [];
+    return matches.map(m => {
+      const match = m.match(/\[(\d+):(.+?)\]/);
+      const idx = match[1];
+      const char = match[2];
+      return `[${idx}:${getPinyin(char)}]`;
+    }).join('');
+  };
+
+  const cmdPinyin = getPinyin(cmd);
+  const indexedPinyin = extractAndPinyin(indexed);
+
+  const userContent = `【暫存區】
+${indexed}
+
+【修正描述】
+${cmd}
+
+【語音輔助資訊（供發音比對參考）】
+- 修正描述拼音：${cmdPinyin}
+- 暫存區拼音：${indexedPinyin}`;
 
   let systemPrompt;
   try {
@@ -78,7 +106,7 @@ app.post('/correct', async (req, res) => {
         model: model || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `暫存區：${indexed}\n修正描述：${cmd}` }
+          { role: 'user', content: userContent }
         ],
         tools,
         tool_choice: 'required'
@@ -97,7 +125,7 @@ app.post('/correct', async (req, res) => {
       args: JSON.parse(tc.function.arguments)
     }));
 
-    res.json({ calls });
+    res.json({ calls, debug: { cmdPinyin, indexedPinyin } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
