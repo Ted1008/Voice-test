@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>語音修正 Sandbox</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f3; color: #1a1a1a; padding: 2rem; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; }
+  .card { background: white; border: 0.5px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 12px; }
+  .label { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .buffer-display { font-size: 24px; font-weight: 500; min-height: 36px; letter-spacing: 0.05em; color: #1a1a1a; }
+  .buffer-display.empty { color: #bbb; font-size: 16px; font-weight: 400; }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; }
+  input[type=text], input[type=password] { flex: 1; padding: 8px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; color: #1a1a1a; }
+  input:focus { outline: none; border-color: #aaa; }
+  button { padding: 8px 16px; border-radius: 8px; border: 0.5px solid #ddd; background: white; cursor: pointer; font-size: 14px; }
+  button:hover { background: #f5f5f3; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .btn-primary { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; font-weight: 500; }
+  .btn-primary:hover { background: #CECBF6; }
+  .divider { border: none; border-top: 0.5px solid #eee; margin: 12px 0; }
+  .examples { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ex-btn { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #f5f5f3; color: #666; border: 0.5px solid #ddd; cursor: pointer; }
+  .ex-btn:hover { background: white; color: #1a1a1a; }
+  .log-area { background: #f5f5f3; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #888; min-height: 80px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  .log-line { margin-bottom: 4px; }
+  .log-line.ok { color: #0F6E56; }
+  .log-line.err { color: #A32D2D; }
+  .log-line.info { color: #185FA5; }
+  .log-line.dim { color: #aaa; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 1.5px solid #ddd; border-top-color: #7F77DD; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<h1>語音修正 Sandbox</h1>
+
+<div class="card">
+  <div class="label">OpenAI API Key</div>
+  <div class="row">
+    <input type="password" id="apiKey" placeholder="貼上你的 API key..." />
+    <select id="modelSelect" style="padding: 8px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; color: #1a1a1a; cursor: pointer;">
+      <option value="gpt-4o-mini">gpt-4o-mini（快/省）</option>
+      <option value="gpt-4o">gpt-4o（強）</option>
+      <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+      <option value="gpt-4.1">gpt-4.1</option>
+    </select>
+  </div>
+
+  <div class="label">暫存區</div>
+  <div class="buffer-display empty" id="bufDisplay">（尚未輸入）</div>
+  <hr class="divider">
+  <div class="label">初始句子</div>
+  <div class="row">
+    <input type="text" id="initInput" placeholder="輸入句子，按 Enter 載入..." onkeydown="if(event.key==='Enter')loadBuffer()" />
+    <button onclick="loadBuffer()">載入</button>
+    <button id="undoBtn" onclick="doUndo()" disabled>↩ 復原</button>
+  </div>
+  <div class="label">範例</div>
+  <div class="examples">
+    <span class="ex-btn" onclick="setExample('我想吃魯肉飯')">我想吃魯肉飯</span>
+    <span class="ex-btn" onclick="setExample('今天天氣真好我很開欣')">今天天氣真好我很開欣</span>
+    <span class="ex-btn" onclick="setExample('他是一個很有利想的人')">他是一個很有利想的人</span>
+    <span class="ex-btn" onclick="setExample('這隻貓咪真的很靠愛')">這隻貓咪真的很靠愛</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">修正指令（模擬 Whisper 輸出）</div>
+  <div class="row">
+    <input type="text" id="cmdInput" placeholder="例：水字旁的魯、利想應該是理想..." onkeydown="if(event.key==='Enter')runCorrection()" />
+    <button class="btn-primary" id="runBtn" onclick="runCorrection()">送出修正</button>
+  </div>
+  <div class="examples">
+    <span class="ex-btn" onclick="setCmd('魯是水字旁的魯')">水字旁的魯</span>
+    <span class="ex-btn" onclick="setCmd('開欣應該是開心')">開欣→開心</span>
+    <span class="ex-btn" onclick="setCmd('利想應該是理想')">利想→理想</span>
+    <span class="ex-btn" onclick="setCmd('靠愛應該是可愛')">靠愛→可愛</span>
+    <span class="ex-btn" onclick="setCmd('刪除真的')">刪除真的</span>
+    <span class="ex-btn" onclick="setCmd('把第一個字移到最後')">移第一字到最後</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">執行 log</div>
+  <div class="log-area" id="logArea">等待操作...</div>
+</div>
+
+<script>
+let tokens = [];
+let undoStack = [];
+
+const bufDisplay = document.getElementById('bufDisplay');
+const logArea = document.getElementById('logArea');
+const undoBtn = document.getElementById('undoBtn');
+const runBtn = document.getElementById('runBtn');
+
+function log(msg, type) {
+  const line = document.createElement('div');
+  line.className = 'log-line' + (type ? ' ' + type : '');
+  line.textContent = msg;
+  logArea.appendChild(line);
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+function clearLog() { logArea.innerHTML = ''; }
+
+function renderBuffer() {
+  if (!tokens.length) {
+    bufDisplay.textContent = '（空）';
+    bufDisplay.className = 'buffer-display empty';
+    return;
+  }
+  bufDisplay.textContent = tokens.map(t => t.text).join('');
+  bufDisplay.className = 'buffer-display';
+}
+
+function setExample(s) {
+  document.getElementById('initInput').value = s;
+  loadBuffer();
+}
+
+function setCmd(s) {
+  document.getElementById('cmdInput').value = s;
+}
+
+function loadBuffer() {
+  const val = document.getElementById('initInput').value.trim();
+  if (!val) return;
+  pushUndo();
+  tokens = val.split('').map((ch, i) => ({ i, text: ch }));
+  renderBuffer();
+  clearLog();
+  log('載入：' + val, 'info');
+  log('內部結構：' + tokens.map(t => `[${t.i}:${t.text}]`).join(''), 'dim');
+}
+
+function pushUndo() {
+  undoStack.push(JSON.parse(JSON.stringify(tokens)));
+  undoBtn.disabled = false;
+}
+
+function doUndo() {
+  if (!undoStack.length) return;
+  tokens = undoStack.pop();
+  reindex();
+  renderBuffer();
+  log('已復原', 'ok');
+  if (!undoStack.length) undoBtn.disabled = true;
+}
+
+function reindex() {
+  tokens.forEach((t, i) => t.i = i);
+}
+
+function execTools(calls) {
+  let changed = false;
+
+  // 由後往前排序，避免 index 偏移問題
+  const sorted = [...calls].sort((a, b) => {
+    const getMaxIdx = c => {
+      if (c.name === 'replace') return c.args.end_index;
+      if (c.name === 'insert') return c.args.index;
+      if (c.name === 'swap') return Math.max(c.args.index_a, c.args.index_b);
+      return 0;
+    };
+    return getMaxIdx(b) - getMaxIdx(a);
+  });
+
+  for (const call of sorted) {
+    const { name, args } = call;
+
+    if (name === 'replace') {
+      const { start_index, end_index, new_text } = args;
+      if (start_index < 0 || end_index >= tokens.length || start_index > end_index) {
+        log(`replace: index 超出範圍 (${start_index}-${end_index})`, 'err'); continue;
+      }
+      const old = tokens.slice(start_index, end_index + 1).map(t => t.text).join('');
+      tokens.splice(start_index, end_index - start_index + 1, { text: new_text });
+      if (new_text === '') {
+        log(`replace(${start_index}, ${end_index}, "") — 刪除 "${old}"`, 'ok');
+      } else {
+        log(`replace(${start_index}, ${end_index}, "${new_text}") — "${old}" → "${new_text}"`, 'ok');
+      }
+      changed = true;
+
+    } else if (name === 'insert') {
+      const { index, text } = args;
+      const insertAt = Math.max(0, Math.min(index, tokens.length));
+      tokens.splice(insertAt, 0, { text });
+      log(`insert(${insertAt}, "${text}")`, 'ok');
+      changed = true;
+
+    } else if (name === 'swap') {
+      const { index_a, index_b } = args;
+      if (index_a < 0 || index_b < 0 || index_a >= tokens.length || index_b >= tokens.length) {
+        log(`swap: index 超出範圍`, 'err'); continue;
+      }
+      const ta = tokens[index_a].text;
+      const tb = tokens[index_b].text;
+      [tokens[index_a].text, tokens[index_b].text] = [tb, ta];
+      log(`swap(${index_a}, ${index_b}) — "${ta}" ↔ "${tb}"`, 'ok');
+      changed = true;
+
+    } else {
+      log(`未知 tool: ${name}`, 'err');
+    }
+  }
+
+  if (changed) {
+    // 重新打散成單字元 token
+    const finalString = tokens.map(t => t.text).join('');
+    tokens = finalString.split('').map((ch, i) => ({ i, text: ch }));
+    renderBuffer();
+    log('結果：' + tokens.map(t => t.text).join(''), 'info');
+  }
+}
+
+async function runCorrection() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const model = document.getElementById('modelSelect').value;
+  const cmd = document.getElementById('cmdInput').value.trim();
+  if (!apiKey) { log('請輸入 API key', 'err'); return; }
+  if (!cmd) return;
+  if (!tokens.length) { log('請先載入句子', 'err'); return; }
+
+  pushUndo();
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<span class="spinner"></span>處理中...';
+  clearLog();
+
+  const indexed = tokens.map(t => `[${t.i}:${t.text}]`).join('');
+  log('暫存區：' + indexed, 'dim');
+  log('修正描述：' + cmd, 'dim');
+  log('送出給 ' + model + '...', '');
+
+  try {
+    const resp = await fetch('http://localhost:3000/correct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, model, indexed, cmd })
+    });
+
+    const data = await resp.json();
+
+    if (data.error) {
+      log('API 錯誤：' + data.error, 'err');
+    } else if (!data.calls || !data.calls.length) {
+      log('OpenAI 沒有回傳 function call', 'err');
+    } else {
+      log(`OpenAI 回傳 ${data.calls.length} 個 function call：`, 'info');
+      data.calls.forEach(c => {
+        log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim');
+      });
+      execTools(data.calls);
+    }
+  } catch(e) {
+    log('無法連到 localhost:3000，請確認 server 有在跑', 'err');
+  }
+
+  runBtn.disabled = false;
+  runBtn.innerHTML = '送出修正';
+  document.getElementById('cmdInput').value = '';
+}
+</script>
+</body>
+</html>
