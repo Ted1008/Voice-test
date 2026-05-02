@@ -253,14 +253,22 @@ async function runCorrection() {
 
     if (data.error) {
       log('API 錯誤：' + data.error, 'err');
-    } else if (!data.calls || !data.calls.length) {
-      log('OpenAI 沒有回傳 function call', 'err');
     } else {
-      log(`OpenAI 回傳 ${data.calls.length} 個 function call：`, 'info');
-      data.calls.forEach(c => {
-        log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim');
-      });
-      execTools(data.calls);
+      if (data.debug) {
+        log('【拼音輔助資訊】', 'info');
+        log('  指令拼音：' + data.debug.cmdPinyin, 'dim');
+        log('  暫存區拼音：' + data.debug.indexedPinyin, 'dim');
+      }
+
+      if (!data.calls || !data.calls.length) {
+        log('OpenAI 沒有回傳 function call', 'err');
+      } else {
+        log(`OpenAI 回傳 ${data.calls.length} 個 function call：`, 'info');
+        data.calls.forEach(c => {
+          log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim');
+        });
+        execTools(data.calls);
+      }
     }
   } catch(e) {
     log('無法連到 localhost:3000，請確認 server 有在跑', 'err');
