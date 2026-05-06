@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(express.static('.'));
 
 app.post('/correct', async (req, res) => {
-  const { apiKey, model, indexed, cmd } = req.body;
+  const { apiKey, model, apiUrl, indexed, cmd } = req.body;
 
   // 生成拼音輔助資訊
   const getPinyin = (text) => pinyin(text, { toneType: 'num' });
@@ -96,7 +96,8 @@ ${cmd}
   ];
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const endpoint = apiUrl || 'https://api.openai.com/v1/chat/completions';
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
