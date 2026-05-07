@@ -12,14 +12,17 @@ app.use(express.static('.'));
 app.post('/correct', async (req, res) => {
   const { apiKey, model, indexed, cmd } = req.body;
 
+  if (!apiKey || !indexed || !cmd) {
+    return res.status(400).json({ error: 'Missing mandatory parameters: apiKey, indexed, cmd are required.' });
+  }
+
   // 生成拼音輔助資訊
   const getPinyin = (text) => pinyin(text, { toneType: 'num' });
   
   // 從 indexed 格式 "[0:我][1:的]" 提取純文字並轉拼音
   const extractAndPinyin = (indexedStr) => {
-    const matches = indexedStr.match(/\[(\d+):(.+?)\]/g) || [];
-    return matches.map(m => {
-      const match = m.match(/\[(\d+):(.+?)\]/);
+    const matches = Array.from(indexedStr.matchAll(/\[(\d+):(.+?)\]/g));
+    return matches.map(match => {
       const idx = match[1];
       const char = match[2];
       return `[${idx}:${getPinyin(char)}]`;
@@ -120,10 +123,36 @@ ${cmd}
     }
 
     const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
-    const calls = toolCalls.map(tc => ({
+    let calls = toolCalls.map(tc => ({
       name: tc.function.name,
       args: JSON.parse(tc.function.arguments)
     }));
+
+    // [New Insight] Deprecate 'delete' tool: Convert any hallucinatory 'delete' calls to 'replace' with empty string
+    calls = calls.map(c => {
+      if (c.name === 'delete') {
+        return {
+          name: 'replace',
+          args: {
+            start_index: c.args.start_index !== undefined ? c.args.start_index : c.args.index,
+            end_index: c.args.end_index !== undefined ? c.args.end_index : c.args.index,
+            new_text: ''
+          }
+        };
+      }
+      return c;
+    });
+
+    // [New Insight] Reverse Execution Order: Sort calls by descending index to prevent index shift
+    calls.sort((a, b) => {
+      const getMaxIdx = c => {
+        if (c.name === 'replace') return c.args.end_index;
+        if (c.name === 'insert') return c.args.index;
+        if (c.name === 'swap') return Math.max(c.args.index_a, c.args.index_b);
+        return 0;
+      };
+      return getMaxIdx(b) - getMaxIdx(a);
+    });
 
     res.json({ calls, debug: { cmdPinyin, indexedPinyin } });
   } catch (e) {
@@ -131,4 +160,8 @@ ${cmd}
   }
 });
 
-app.listen(3000, () => console.log('server running at http://localhost:3000'));
+if (require.main === module) {
+  app.listen(3000, () => console.log('server running at http://localhost:3000'));
+}
+
+module.exports = app;
