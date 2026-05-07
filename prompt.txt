@@ -76,8 +76,7 @@ Function Call: replace(start_index: 2, end_index: 2, new_text: "亡")
 Function Call: insert(index: 2, text: "一")
 
 【範例 8】
-暫存區：[0:太][1:太]
+暫存區：[0:爸][1:媽]
 修正描述：第二個字移到前面
-推理：目標句「太太」(這裡可能看不出，但若是「[0:爸][1:媽]」變「媽爸」)。假設「[0:好][1:不]」，修正「不移到前面」，變成「不好」。
-差異是 index 0 和 1 交換。
+推理：目標句「媽爸」，差異是 index 0 和 1 的「爸」與「媽」互換位置。
 Function Call: swap(index_a: 0, index_b: 1)
