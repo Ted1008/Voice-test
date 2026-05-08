@@ -52,9 +52,8 @@
 
 ```
 Voice-test/
-├── index.html       # 前端 Sandbox UI
-├── server.js        # Node.js 後端，代理 OpenAI API 請求
-├── prompt.txt       # LLM System Prompt（可即時修改，不需重啟 server）
+├── index.html       # 前端 Sandbox UI（無後端純靜態應用）
+├── prompt.txt       # LLM System Prompt（由前端 fetch 即時讀取）
 ├── package.json
 └── README.md
 ```
@@ -65,7 +64,7 @@ Voice-test/
 
 ### 前置需求
 
-- Node.js v18+
+- 一個可以提供靜態網頁伺服器的環境（例如 `npx serve` 或 VSCode Live Server）
 - OpenAI API Key（需支援 function calling 的模型）
 
 ### 安裝與啟動
@@ -73,11 +72,10 @@ Voice-test/
 ```bash
 git clone https://github.com/Ted1008/Voice-test.git
 cd Voice-test
-npm install
-node server.js
+npx serve .
 ```
 
-瀏覽器開啟 `http://localhost:3000`
+瀏覽器開啟對應的本機地址（通常是 `http://localhost:3000`）。
 
 ### 使用方式
 

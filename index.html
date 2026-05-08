@@ -33,6 +33,7 @@
   .spinner { display: inline-block; width: 12px; height: 12px; border: 1.5px solid #ddd; border-top-color: #7F77DD; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<script src="https://unpkg.com/pinyin-pro"></script>
 </head>
 <body>
 <h1>語音修正 Sandbox</h1>
@@ -95,6 +96,8 @@
 </div>
 
 <script>
+const { pinyin } = pinyinPro;
+
 let tokens = [];
 let undoStack = [];
 
@@ -243,35 +246,151 @@ async function runCorrection() {
   log('送出給 ' + model + '...', '');
 
   try {
-    const resp = await fetch('http://localhost:3000/correct', {
+    let systemPrompt = '';
+    try {
+      const promptResp = await fetch('./prompt.txt');
+      systemPrompt = await promptResp.text();
+    } catch (e) {
+      log('prompt.txt 讀取失敗：' + e.message, 'err');
+      runBtn.disabled = false;
+      runBtn.innerHTML = '送出修正';
+      return;
+    }
+
+    // 生成拼音輔助資訊
+    const getPinyin = (text) => pinyin(text, { toneType: 'num' });
+
+    // 從 indexed 格式 "[0:我][1:的]" 提取純文字並轉拼音
+    const extractAndPinyin = (indexedStr) => {
+      const matches = Array.from(indexedStr.matchAll(/\[(\d+):(.+?)\]/g));
+      return matches.map(match => {
+        const idx = match[1];
+        const char = match[2];
+        return `[${idx}:${getPinyin(char)}]`;
+      }).join('');
+    };
+
+    const cmdPinyin = getPinyin(cmd);
+    const indexedPinyin = extractAndPinyin(indexed);
+
+    const userContent = `【暫存區】
+${indexed}
+
+【修正描述】
+${cmd}
+
+【語音輔助資訊（供發音比對參考）】
+- 修正描述拼音：${cmdPinyin}
+- 暫存區拼音：${indexedPinyin}`;
+
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "replace",
+          description: "替換暫存區中一段連續的字（含刪除）。刪除時將 new_text 設為空字串。",
+          parameters: {
+            type: "object",
+            properties: {
+              start_index: { type: "integer", description: "起始字元的 index（含）" },
+              end_index: { type: "integer", description: "結束字元的 index（含）" },
+              new_text: { type: "string", description: "新的文字，刪除時填空字串" }
+            },
+            required: ["start_index", "end_index", "new_text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "insert",
+          description: "在特定 index 位置前插入文字",
+          parameters: {
+            type: "object",
+            properties: {
+              index: { type: "integer", description: "插入位置的 index（插在該 index 之前）" },
+              text: { type: "string", description: "要插入的文字" }
+            },
+            required: ["index", "text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "swap",
+          description: "交換兩個 index 的字的位置",
+          parameters: {
+            type: "object",
+            properties: {
+              index_a: { type: "integer", description: "第一個字的 index" },
+              index_b: { type: "integer", description: "第二個字的 index" }
+            },
+            required: ["index_a", "index_b"]
+          }
+        }
+      }
+    ];
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, model, indexed, cmd })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent }
+        ],
+        tools,
+        tool_choice: 'required'
+      })
     });
 
     const data = await resp.json();
 
     if (data.error) {
-      log('API 錯誤：' + data.error, 'err');
+      log('API 錯誤：' + data.error.message, 'err');
     } else {
-      if (data.debug) {
-        log('【拼音輔助資訊】', 'info');
-        log('  指令拼音：' + data.debug.cmdPinyin, 'dim');
-        log('  暫存區拼音：' + data.debug.indexedPinyin, 'dim');
-      }
+      log('【拼音輔助資訊】', 'info');
+      log('  指令拼音：' + cmdPinyin, 'dim');
+      log('  暫存區拼音：' + indexedPinyin, 'dim');
 
-      if (!data.calls || !data.calls.length) {
+      const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
+      let calls = toolCalls.map(tc => ({
+        name: tc.function.name,
+        args: JSON.parse(tc.function.arguments)
+      }));
+
+      // [New Insight] Deprecate 'delete' tool: Convert any hallucinatory 'delete' calls to 'replace' with empty string
+      calls = calls.map(c => {
+        if (c.name === 'delete') {
+          return {
+            name: 'replace',
+            args: {
+              start_index: c.args.start_index !== undefined ? c.args.start_index : c.args.index,
+              end_index: c.args.end_index !== undefined ? c.args.end_index : c.args.index,
+              new_text: ''
+            }
+          };
+        }
+        return c;
+      });
+
+      if (!calls || !calls.length) {
         log('OpenAI 沒有回傳 function call', 'err');
       } else {
-        log(`OpenAI 回傳 ${data.calls.length} 個 function call：`, 'info');
-        data.calls.forEach(c => {
+        log(`OpenAI 回傳 ${calls.length} 個 function call：`, 'info');
+        calls.forEach(c => {
           log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim');
         });
-        execTools(data.calls);
+        execTools(calls);
       }
     }
   } catch(e) {
-    log('無法連到 localhost:3000，請確認 server 有在跑', 'err');
+    log('發生錯誤：' + e.message, 'err');
   }
 
   runBtn.disabled = false;
