@@ -498,13 +498,14 @@ ${cmd}
   runBtn.disabled = false;
   runBtn.innerHTML = '送出修正';
 }
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch(err => {
-        console.warn('Service Worker registration failed:', err);
-      });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(err => {
+      console.warn('Service Worker registration failed:', err);
     });
-  }
+  });
+}
 </script>
 </body>
 </html>
