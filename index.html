@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#EEEDFE">
 <title>語音修正 Sandbox</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,10 +34,27 @@
   .log-line.dim { color: #aaa; }
   .spinner { display: inline-block; width: 12px; height: 12px; border: 1.5px solid #ddd; border-top-color: #7F77DD; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+  .tab-btn { padding: 10px 20px; font-size: 16px; font-weight: 500; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; color: #888; }
+  .tab-btn.active { color: #3C3489; border-bottom: 2px solid #3C3489; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .prompt-editor { width: 100%; height: 400px; padding: 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; font-family: monospace; resize: vertical; margin-bottom: 12px; }
+  .editor-actions { display: flex; gap: 10px; }
 </style>
+<script src="https://unpkg.com/pinyin-pro"></script>
 </head>
 <body>
-<h1>語音修正 Sandbox</h1>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+  <h1 style="margin-bottom: 0;">語音修正 Sandbox</h1>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('test-tab', event)">修正測試</button>
+    <button class="tab-btn" onclick="switchTab('prompt-tab', event)">Prompt 編輯</button>
+  </div>
+</div>
+
+<div id="test-tab" class="tab-content active">
 
 <div class="card">
   <div class="label">OpenAI API Key</div>
@@ -94,7 +113,29 @@
   <div class="log-area" id="logArea">等待操作...</div>
 </div>
 
+</div>
+
+<div id="prompt-tab" class="tab-content">
+  <div class="card">
+    <div class="label">Prompt 編輯器</div>
+    <textarea id="promptEditor" class="prompt-editor" placeholder="載入中..."></textarea>
+    <div class="editor-actions">
+      <button class="btn-primary" onclick="savePrompt()">儲存 Prompt</button>
+      <button onclick="resetPrompt()">重設為預設</button>
+    </div>
+  </div>
+</div>
+
 <script>
+function switchTab(tabId, event) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.target.classList.add('active');
+}
+
+const { pinyin } = pinyinPro;
+
 let tokens = [];
 let undoStack = [];
 
@@ -102,6 +143,65 @@ const bufDisplay = document.getElementById('bufDisplay');
 const logArea = document.getElementById('logArea');
 const undoBtn = document.getElementById('undoBtn');
 const runBtn = document.getElementById('runBtn');
+
+let currentSystemPrompt = '';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const apiKey = localStorage.getItem('apiKey');
+  const modelSelect = localStorage.getItem('modelSelect');
+  const initInput = localStorage.getItem('initInput');
+  const cmdInput = localStorage.getItem('cmdInput');
+
+  if (apiKey) document.getElementById('apiKey').value = apiKey;
+  if (modelSelect) document.getElementById('modelSelect').value = modelSelect;
+  if (initInput) {
+    document.getElementById('initInput').value = initInput;
+    loadBuffer();
+  }
+  if (cmdInput) document.getElementById('cmdInput').value = cmdInput;
+
+  document.getElementById('apiKey').addEventListener('input', (e) => localStorage.setItem('apiKey', e.target.value));
+  document.getElementById('modelSelect').addEventListener('change', (e) => localStorage.setItem('modelSelect', e.target.value));
+  document.getElementById('initInput').addEventListener('input', (e) => localStorage.setItem('initInput', e.target.value));
+  document.getElementById('cmdInput').addEventListener('input', (e) => localStorage.setItem('cmdInput', e.target.value));
+
+  // Init Prompt Editor
+  const customPrompt = localStorage.getItem('customPrompt');
+  if (customPrompt) {
+    currentSystemPrompt = customPrompt;
+    document.getElementById('promptEditor').value = customPrompt;
+  } else {
+    try {
+      const resp = await fetch('./prompt.txt');
+      const text = await resp.text();
+      currentSystemPrompt = text;
+      document.getElementById('promptEditor').value = text;
+    } catch (e) {
+      console.error('Failed to load default prompt:', e);
+    }
+  }
+});
+
+function savePrompt() {
+  const text = document.getElementById('promptEditor').value;
+  localStorage.setItem('customPrompt', text);
+  currentSystemPrompt = text;
+  alert('Prompt 已儲存至 localStorage');
+}
+
+async function resetPrompt() {
+  if (!confirm('確定要清除自訂 Prompt，並恢復為預設的 prompt.txt 嗎？')) return;
+  localStorage.removeItem('customPrompt');
+  try {
+    const resp = await fetch('./prompt.txt');
+    const text = await resp.text();
+    currentSystemPrompt = text;
+    document.getElementById('promptEditor').value = text;
+    alert('已重設為預設 Prompt');
+  } catch (e) {
+    alert('讀取預設 prompt 失敗');
+  }
+}
 
 function log(msg, type) {
   const line = document.createElement('div');
@@ -125,11 +225,13 @@ function renderBuffer() {
 
 function setExample(s) {
   document.getElementById('initInput').value = s;
+    localStorage.setItem('initInput', s);
   loadBuffer();
 }
 
 function setCmd(s) {
   document.getElementById('cmdInput').value = s;
+    localStorage.setItem('cmdInput', s);
 }
 
 function loadBuffer() {
@@ -243,40 +345,166 @@ async function runCorrection() {
   log('送出給 ' + model + '...', '');
 
   try {
-    const resp = await fetch('http://localhost:3000/correct', {
+    let systemPrompt = currentSystemPrompt;
+    if (!systemPrompt) {
+      try {
+        const promptResp = await fetch('./prompt.txt');
+        systemPrompt = await promptResp.text();
+        currentSystemPrompt = systemPrompt;
+      } catch (e) {
+        log('prompt.txt 讀取失敗：' + e.message, 'err');
+        runBtn.disabled = false;
+        runBtn.innerHTML = '送出修正';
+        return;
+      }
+    }
+
+    // 生成拼音輔助資訊
+    const getPinyin = (text) => pinyin(text, { toneType: 'num' });
+
+    // 從 indexed 格式 "[0:我][1:的]" 提取純文字並轉拼音
+    const extractAndPinyin = (indexedStr) => {
+      const matches = Array.from(indexedStr.matchAll(/\[(\d+):(.+?)\]/g));
+      return matches.map(match => {
+        const idx = match[1];
+        const char = match[2];
+        return `[${idx}:${getPinyin(char)}]`;
+      }).join('');
+    };
+
+    const cmdPinyin = getPinyin(cmd);
+    const indexedPinyin = extractAndPinyin(indexed);
+
+    const userContent = `【暫存區】
+${indexed}
+
+【修正描述】
+${cmd}
+
+【語音輔助資訊（供發音比對參考）】
+- 修正描述拼音：${cmdPinyin}
+- 暫存區拼音：${indexedPinyin}`;
+
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "replace",
+          description: "替換暫存區中一段連續的字（含刪除）。刪除時將 new_text 設為空字串。",
+          parameters: {
+            type: "object",
+            properties: {
+              start_index: { type: "integer", description: "起始字元的 index（含）" },
+              end_index: { type: "integer", description: "結束字元的 index（含）" },
+              new_text: { type: "string", description: "新的文字，刪除時填空字串" }
+            },
+            required: ["start_index", "end_index", "new_text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "insert",
+          description: "在特定 index 位置前插入文字",
+          parameters: {
+            type: "object",
+            properties: {
+              index: { type: "integer", description: "插入位置的 index（插在該 index 之前）" },
+              text: { type: "string", description: "要插入的文字" }
+            },
+            required: ["index", "text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "swap",
+          description: "交換兩個 index 的字的位置",
+          parameters: {
+            type: "object",
+            properties: {
+              index_a: { type: "integer", description: "第一個字的 index" },
+              index_b: { type: "integer", description: "第二個字的 index" }
+            },
+            required: ["index_a", "index_b"]
+          }
+        }
+      }
+    ];
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, model, indexed, cmd })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent }
+        ],
+        tools,
+        tool_choice: 'required'
+      })
     });
 
     const data = await resp.json();
 
     if (data.error) {
-      log('API 錯誤：' + data.error, 'err');
+      log('API 錯誤：' + data.error.message, 'err');
     } else {
-      if (data.debug) {
-        log('【拼音輔助資訊】', 'info');
-        log('  指令拼音：' + data.debug.cmdPinyin, 'dim');
-        log('  暫存區拼音：' + data.debug.indexedPinyin, 'dim');
-      }
+      log('【拼音輔助資訊】', 'info');
+      log('  指令拼音：' + cmdPinyin, 'dim');
+      log('  暫存區拼音：' + indexedPinyin, 'dim');
 
-      if (!data.calls || !data.calls.length) {
+      const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
+      let calls = toolCalls.map(tc => ({
+        name: tc.function.name,
+        args: JSON.parse(tc.function.arguments)
+      }));
+
+      // [New Insight] Deprecate 'delete' tool: Convert any hallucinatory 'delete' calls to 'replace' with empty string
+      calls = calls.map(c => {
+        if (c.name === 'delete') {
+          return {
+            name: 'replace',
+            args: {
+              start_index: c.args.start_index !== undefined ? c.args.start_index : c.args.index,
+              end_index: c.args.end_index !== undefined ? c.args.end_index : c.args.index,
+              new_text: ''
+            }
+          };
+        }
+        return c;
+      });
+
+      if (!calls || !calls.length) {
         log('OpenAI 沒有回傳 function call', 'err');
       } else {
-        log(`OpenAI 回傳 ${data.calls.length} 個 function call：`, 'info');
-        data.calls.forEach(c => {
+        log(`OpenAI 回傳 ${calls.length} 個 function call：`, 'info');
+        calls.forEach(c => {
           log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim');
         });
-        execTools(data.calls);
+        execTools(calls);
       }
     }
   } catch(e) {
-    log('無法連到 localhost:3000，請確認 server 有在跑', 'err');
+    log('發生錯誤：' + e.message, 'err');
   }
 
   runBtn.disabled = false;
   runBtn.innerHTML = '送出修正';
-  document.getElementById('cmdInput').value = '';
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(err => {
+      console.warn('Service Worker registration failed:', err);
+    });
+  });
 }
 </script>
 </body>
