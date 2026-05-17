@@ -9,7 +9,7 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #f5f5f3; color: #1a1a1a; padding: 2rem; }
-  h1 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; }
+  h1 { font-size: 18px; font-weight: 500; }
   .card { background: white; border: 0.5px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 12px; }
   .label { font-size: 12px; color: #888; margin-bottom: 6px; }
   .buffer-display { font-size: 24px; font-weight: 500; min-height: 36px; letter-spacing: 0.05em; color: #1a1a1a; }
@@ -17,11 +17,15 @@
   .row { display: flex; gap: 8px; margin-bottom: 12px; }
   input[type=text], input[type=password] { flex: 1; padding: 8px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; color: #1a1a1a; }
   input:focus { outline: none; border-color: #aaa; }
-  button { padding: 8px 16px; border-radius: 8px; border: 0.5px solid #ddd; background: white; cursor: pointer; font-size: 14px; }
+  select { padding: 8px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; color: #1a1a1a; cursor: pointer; }
+  select:focus { outline: none; border-color: #aaa; }
+  button { padding: 8px 16px; border-radius: 8px; border: 0.5px solid #ddd; background: white; cursor: pointer; font-size: 14px; white-space: nowrap; }
   button:hover { background: #f5f5f3; }
   button:disabled { opacity: 0.4; cursor: default; }
   .btn-primary { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; font-weight: 500; }
   .btn-primary:hover { background: #CECBF6; }
+  .btn-danger { color: #A32D2D; border-color: #ddd; }
+  .btn-danger:hover { background: #FFF0F0; border-color: #e8b4b4; }
   .divider { border: none; border-top: 0.5px solid #eee; margin: 12px 0; }
   .examples { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
   .ex-btn { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #f5f5f3; color: #666; border: 0.5px solid #ddd; cursor: pointer; }
@@ -35,33 +39,66 @@
   .spinner { display: inline-block; width: 12px; height: 12px; border: 1.5px solid #ddd; border-top-color: #7F77DD; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .tabs { display: flex; gap: 10px; margin-bottom: 12px; }
-  .tab-btn { padding: 10px 20px; font-size: 16px; font-weight: 500; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; color: #888; }
-  .tab-btn.active { color: #3C3489; border-bottom: 2px solid #3C3489; }
+  /* App header & tabs */
+  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; gap: 16px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab-btn { padding: 7px 16px; font-size: 14px; font-weight: 500; cursor: pointer; border: 0.5px solid transparent; background: none; border-radius: 8px; color: #888; }
+  .tab-btn.active { color: #3C3489; background: #EEEDFE; border-color: #AFA9EC; }
+  .tab-btn:hover:not(.active) { background: #f0f0f0; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
-  .prompt-editor { width: 100%; height: 400px; padding: 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; font-family: monospace; resize: vertical; margin-bottom: 12px; }
-  .editor-actions { display: flex; gap: 10px; }
+  .count-badge { display: inline-block; background: #3C3489; color: white; border-radius: 999px; font-size: 10px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+
+  /* Active version indicator in test tab */
+  .version-bar { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #999; padding: 4px 0 10px; }
+  .version-pill { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .version-pill.named { background: #EEEDFE; color: #3C3489; border: 0.5px solid #AFA9EC; }
+  .version-pill.unnamed { background: #f0f0f0; color: #999; border: 0.5px solid #e0e0e0; }
+
+  /* Prompt editor */
+  .prompt-editor { width: 100%; height: 400px; padding: 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 13px; font-family: monospace; resize: vertical; margin-bottom: 0; }
+
+  /* Test log entries */
+  .test-log-entry { border: 0.5px solid #eee; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  .test-log-header { padding: 10px 12px; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; background: #fafafa; user-select: none; }
+  .test-log-header:hover { background: #f0f0f0; }
+  .test-log-time { font-size: 11px; color: #bbb; white-space: nowrap; flex-shrink: 0; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+  .tag-model { background: #e8f4fd; color: #185FA5; border: 0.5px solid #b3d9f5; }
+  .tag-prompt { background: #EEEDFE; color: #3C3489; border: 0.5px solid #AFA9EC; }
+  .tag-draft { background: #f5f5f3; color: #999; border: 0.5px solid #e0e0e0; }
+  .test-log-cmd { font-size: 12px; color: #555; flex: 1; min-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .test-log-result { font-size: 12px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+  .test-log-result.ok { color: #0F6E56; }
+  .test-log-result.err { color: #A32D2D; }
+  .test-log-detail { padding: 12px; border-top: 0.5px solid #eee; font-size: 12px; font-family: monospace; display: none; }
+  .detail-section { margin-bottom: 10px; }
+  .detail-label { font-size: 11px; color: #aaa; font-family: system-ui; margin-bottom: 3px; }
+  .detail-value { color: #333; word-break: break-all; }
+  .detail-pre { background: #f5f5f3; padding: 8px 10px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; margin-top: 4px; }
+  .empty-state { text-align: center; padding: 40px 20px; color: #ccc; font-size: 14px; }
 </style>
 <script src="https://unpkg.com/pinyin-pro"></script>
 </head>
 <body>
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-  <h1 style="margin-bottom: 0;">語音修正 Sandbox</h1>
+
+<div class="app-header">
+  <h1>語音修正 Sandbox</h1>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('test-tab', event)">修正測試</button>
     <button class="tab-btn" onclick="switchTab('prompt-tab', event)">Prompt 編輯</button>
+    <button class="tab-btn" onclick="switchTab('log-tab', event)">測試記錄<span id="logCountBadge" class="count-badge" style="display:none">0</span></button>
   </div>
 </div>
 
+<!-- 修正測試 Tab -->
 <div id="test-tab" class="tab-content active">
 
 <div class="card">
   <div class="label">OpenAI API Key</div>
   <div class="row">
     <input type="password" id="apiKey" placeholder="貼上你的 API key..." />
-    <select id="modelSelect" style="padding: 8px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; color: #1a1a1a; cursor: pointer;">
-
+    <select id="modelSelect" style="min-width:150px;max-width:220px;">
       <option value="gpt-5.4-nano">gpt-5.4-nano</option>
       <option value="gpt-5.4-mini">gpt-5.4-mini</option>
       <option value="gpt-5-nano">gpt-5-nano（最省）</option>
@@ -70,8 +107,10 @@
       <option value="gpt-4.1">gpt-4.1</option>
       <option value="gpt-4o-mini">gpt-4o-mini</option>
       <option value="gpt-4o">gpt-4o</option>
-
     </select>
+  </div>
+  <div class="version-bar">
+    使用中 Prompt：<span id="activeVersionBadge" class="version-pill unnamed">未命名（暫存）</span>
   </div>
 
   <div class="label">暫存區</div>
@@ -115,94 +154,335 @@
 
 </div>
 
+<!-- Prompt 編輯 Tab -->
 <div id="prompt-tab" class="tab-content">
   <div class="card">
-    <div class="label">Prompt 編輯器</div>
-    <textarea id="promptEditor" class="prompt-editor" placeholder="載入中..."></textarea>
-    <div class="editor-actions">
-      <button class="btn-primary" onclick="savePrompt()">儲存 Prompt</button>
-      <button onclick="resetPrompt()">重設為預設</button>
+    <div class="label">版本管理（最多 5 個）</div>
+    <div class="row">
+      <select id="versionSelect" style="flex:1">
+        <option value="">— 選擇版本 —</option>
+      </select>
+      <button onclick="loadSelectedVersion()">載入版本</button>
+      <button onclick="deleteSelectedVersion()" class="btn-danger">刪除</button>
     </div>
+    <hr class="divider">
+    <div class="label">版本名稱</div>
+    <div class="row" style="margin-bottom:8px">
+      <input type="text" id="versionName" placeholder="例：v1-基礎版、v2-拼音強化..." />
+    </div>
+    <div class="row">
+      <button class="btn-primary" onclick="saveAsVersion()">另存新版本</button>
+      <button onclick="updateCurrentVersion()">更新目前版本</button>
+      <button onclick="resetPrompt()">重設為 prompt.txt</button>
+    </div>
+    <hr class="divider">
+    <div class="label">Prompt 內容（可直接編輯，記得儲存版本）</div>
+    <textarea id="promptEditor" class="prompt-editor" placeholder="載入中..."></textarea>
+  </div>
+</div>
+
+<!-- 測試記錄 Tab -->
+<div id="log-tab" class="tab-content">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+      <div style="font-size:14px; font-weight:500">
+        測試記錄 <span id="logCount" style="font-size:12px; color:#999; font-weight:400">0 筆</span>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button onclick="exportLogs('json')">匯出 JSON</button>
+        <button onclick="exportLogs('csv')">匯出 CSV</button>
+        <button onclick="clearTestLogs()" class="btn-danger">清除記錄</button>
+      </div>
+    </div>
+    <div id="testLogList"><div class="empty-state">尚無測試記錄</div></div>
   </div>
 </div>
 
 <script>
-function switchTab(tabId, event) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  event.target.classList.add('active');
-}
-
 const { pinyin } = pinyinPro;
 
 let tokens = [];
 let undoStack = [];
+let currentSystemPrompt = '';
+let promptVersions = [];
+let activeVersionId = null;
+let testLogs = [];
 
 const bufDisplay = document.getElementById('bufDisplay');
 const logArea = document.getElementById('logArea');
 const undoBtn = document.getElementById('undoBtn');
 const runBtn = document.getElementById('runBtn');
 
-let currentSystemPrompt = '';
+// === Tab Management ===
+function switchTab(tabId, event) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const btn = event.target.closest('.tab-btn');
+  if (btn) btn.classList.add('active');
+  if (tabId === 'log-tab') renderTestLogs();
+}
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const apiKey = localStorage.getItem('apiKey');
-  const modelSelect = localStorage.getItem('modelSelect');
-  const initInput = localStorage.getItem('initInput');
-  const cmdInput = localStorage.getItem('cmdInput');
+// === Prompt Version Management ===
+function loadPromptVersionsFromStorage() {
+  const stored = localStorage.getItem('promptVersions');
+  promptVersions = stored ? JSON.parse(stored) : [];
+}
 
-  if (apiKey) document.getElementById('apiKey').value = apiKey;
-  if (modelSelect) document.getElementById('modelSelect').value = modelSelect;
-  if (initInput) {
-    document.getElementById('initInput').value = initInput;
-    loadBuffer();
-  }
-  if (cmdInput) document.getElementById('cmdInput').value = cmdInput;
+function savePromptVersionsToStorage() {
+  localStorage.setItem('promptVersions', JSON.stringify(promptVersions));
+}
 
-  document.getElementById('apiKey').addEventListener('input', (e) => localStorage.setItem('apiKey', e.target.value));
-  document.getElementById('modelSelect').addEventListener('change', (e) => localStorage.setItem('modelSelect', e.target.value));
-  document.getElementById('initInput').addEventListener('input', (e) => localStorage.setItem('initInput', e.target.value));
-  document.getElementById('cmdInput').addEventListener('input', (e) => localStorage.setItem('cmdInput', e.target.value));
+function renderVersionSelect() {
+  const select = document.getElementById('versionSelect');
+  select.innerHTML = '<option value="">— 選擇版本 —</option>';
+  promptVersions.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    const date = new Date(v.createdAt).toLocaleDateString('zh-TW');
+    opt.textContent = `${v.name}  (${date})`;
+    if (v.id === activeVersionId) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
 
-  // Init Prompt Editor
-  const customPrompt = localStorage.getItem('customPrompt');
-  if (customPrompt) {
-    currentSystemPrompt = customPrompt;
-    document.getElementById('promptEditor').value = customPrompt;
+function updateActiveVersionBadge() {
+  const badge = document.getElementById('activeVersionBadge');
+  const version = promptVersions.find(v => v.id === activeVersionId);
+  if (version) {
+    badge.textContent = version.name;
+    badge.className = 'version-pill named';
   } else {
-    try {
-      const resp = await fetch('./prompt.txt');
-      const text = await resp.text();
-      currentSystemPrompt = text;
-      document.getElementById('promptEditor').value = text;
-    } catch (e) {
-      console.error('Failed to load default prompt:', e);
-    }
+    badge.textContent = '未命名（暫存）';
+    badge.className = 'version-pill unnamed';
   }
-});
+}
 
-function savePrompt() {
-  const text = document.getElementById('promptEditor').value;
-  localStorage.setItem('customPrompt', text);
-  currentSystemPrompt = text;
-  alert('Prompt 已儲存至 localStorage');
+function loadSelectedVersion() {
+  const id = document.getElementById('versionSelect').value;
+  if (!id) { alert('請先選擇一個版本'); return; }
+  const version = promptVersions.find(v => v.id === id);
+  if (!version) return;
+  activeVersionId = id;
+  localStorage.setItem('activeVersionId', id);
+  currentSystemPrompt = version.content;
+  document.getElementById('promptEditor').value = version.content;
+  document.getElementById('versionName').value = version.name;
+  renderVersionSelect();
+  updateActiveVersionBadge();
+  alert(`已載入版本「${version.name}」`);
+}
+
+function saveAsVersion() {
+  const name = document.getElementById('versionName').value.trim();
+  if (!name) { alert('請輸入版本名稱'); return; }
+  if (promptVersions.length >= 5) {
+    alert('最多只能儲存 5 個版本，請先刪除一個版本。');
+    return;
+  }
+  const content = document.getElementById('promptEditor').value;
+  const version = {
+    id: 'v_' + Date.now(),
+    name,
+    content,
+    createdAt: new Date().toISOString()
+  };
+  promptVersions.push(version);
+  activeVersionId = version.id;
+  localStorage.setItem('activeVersionId', version.id);
+  savePromptVersionsToStorage();
+  currentSystemPrompt = content;
+  renderVersionSelect();
+  updateActiveVersionBadge();
+  alert(`版本「${name}」已儲存`);
+}
+
+function updateCurrentVersion() {
+  if (!activeVersionId) { alert('尚未選擇版本，請先「另存新版本」'); return; }
+  const version = promptVersions.find(v => v.id === activeVersionId);
+  if (!version) { alert('找不到目前版本，請重新選擇'); return; }
+  version.content = document.getElementById('promptEditor').value;
+  version.updatedAt = new Date().toISOString();
+  savePromptVersionsToStorage();
+  currentSystemPrompt = version.content;
+  alert(`版本「${version.name}」已更新`);
+}
+
+function deleteSelectedVersion() {
+  const id = document.getElementById('versionSelect').value;
+  if (!id) { alert('請先選擇要刪除的版本'); return; }
+  const version = promptVersions.find(v => v.id === id);
+  if (!version) return;
+  if (!confirm(`確定要刪除版本「${version.name}」嗎？`)) return;
+  promptVersions = promptVersions.filter(v => v.id !== id);
+  if (activeVersionId === id) {
+    activeVersionId = null;
+    localStorage.removeItem('activeVersionId');
+  }
+  savePromptVersionsToStorage();
+  renderVersionSelect();
+  updateActiveVersionBadge();
 }
 
 async function resetPrompt() {
-  if (!confirm('確定要清除自訂 Prompt，並恢復為預設的 prompt.txt 嗎？')) return;
-  localStorage.removeItem('customPrompt');
+  if (!confirm('確定要從 prompt.txt 重新載入預設 Prompt？目前的編輯將被覆蓋（已存版本不受影響）。')) return;
   try {
     const resp = await fetch('./prompt.txt');
     const text = await resp.text();
     currentSystemPrompt = text;
     document.getElementById('promptEditor').value = text;
-    alert('已重設為預設 Prompt');
+    activeVersionId = null;
+    localStorage.removeItem('activeVersionId');
+    localStorage.removeItem('customPrompt');
+    updateActiveVersionBadge();
+    renderVersionSelect();
+    alert('已重設為 prompt.txt 預設 Prompt');
   } catch (e) {
-    alert('讀取預設 prompt 失敗');
+    alert('讀取 prompt.txt 失敗');
   }
 }
 
+// === Test Log Management ===
+function loadTestLogsFromStorage() {
+  const stored = localStorage.getItem('testLogs');
+  testLogs = stored ? JSON.parse(stored) : [];
+}
+
+function saveTestLogsToStorage() {
+  if (testLogs.length > 200) testLogs = testLogs.slice(-200);
+  localStorage.setItem('testLogs', JSON.stringify(testLogs));
+}
+
+function addTestLog(entry) {
+  testLogs.push(entry);
+  saveTestLogsToStorage();
+  updateLogCountUI();
+}
+
+function updateLogCountUI() {
+  const badge = document.getElementById('logCountBadge');
+  const countEl = document.getElementById('logCount');
+  const n = testLogs.length;
+  badge.style.display = n > 0 ? '' : 'none';
+  badge.textContent = n;
+  if (countEl) countEl.textContent = n + ' 筆';
+}
+
+function renderTestLogs() {
+  const list = document.getElementById('testLogList');
+  updateLogCountUI();
+  if (!testLogs.length) {
+    list.innerHTML = '<div class="empty-state">尚無測試記錄</div>';
+    return;
+  }
+  list.innerHTML = '';
+  [...testLogs].reverse().forEach(entry => {
+    const el = document.createElement('div');
+    el.className = 'test-log-entry';
+
+    const timeStr = new Date(entry.timestamp).toLocaleString('zh-TW');
+    const toolCallStr = entry.toolCalls && entry.toolCalls.length
+      ? entry.toolCalls.map(c => `${c.name}(${JSON.stringify(c.args)})`).join('\n')
+      : '（無 tool call）';
+    const promptTagHtml = entry.promptVersionName
+      ? `<span class="tag tag-prompt">${entry.promptVersionName}</span>`
+      : `<span class="tag tag-draft">暫存</span>`;
+    const resultClass = entry.success ? 'ok' : 'err';
+    const resultIcon = entry.success ? '✓' : '✗';
+    const resultDisplay = entry.error
+      ? `✗ ${entry.error}`
+      : `${resultIcon} ${entry.resultText || '—'}`;
+
+    const promptContentHtml = entry.promptContent
+      ? entry.promptContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      : '—';
+
+    el.innerHTML = `
+      <div class="test-log-header">
+        <span class="test-log-time">${timeStr}</span>
+        <span class="tag tag-model">${entry.model}</span>
+        ${promptTagHtml}
+        <span class="test-log-cmd">${entry.command}</span>
+        <span class="test-log-result ${resultClass}">${resultDisplay}</span>
+      </div>
+      <div class="test-log-detail">
+        <div class="detail-section">
+          <div class="detail-label">暫存區（修正前）</div>
+          <div class="detail-value">${entry.bufferText} <span style="color:#bbb;font-size:11px">${entry.buffer}</span></div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">修正指令</div>
+          <div class="detail-value">${entry.command}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">Tool Calls 回傳</div>
+          <div class="detail-pre">${toolCallStr}</div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">修正結果</div>
+          <div class="detail-value" style="font-size:16px;font-weight:500">${entry.resultText || '—'}</div>
+        </div>
+        ${entry.error ? `<div class="detail-section"><div class="detail-label" style="color:#A32D2D">錯誤訊息</div><div class="detail-value" style="color:#A32D2D">${entry.error}</div></div>` : ''}
+        <div class="detail-section">
+          <div class="detail-label">Prompt 版本：${entry.promptVersionName || '暫存'}</div>
+          <div class="detail-pre">${promptContentHtml}</div>
+        </div>
+      </div>
+    `;
+
+    el.querySelector('.test-log-header').addEventListener('click', () => {
+      const detail = el.querySelector('.test-log-detail');
+      detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
+    });
+
+    list.appendChild(el);
+  });
+}
+
+function exportLogs(format) {
+  if (!testLogs.length) { alert('尚無測試記錄'); return; }
+  let content, filename, mimeType;
+
+  if (format === 'json') {
+    content = JSON.stringify(testLogs, null, 2);
+    filename = `test-logs-${new Date().toISOString().slice(0, 10)}.json`;
+    mimeType = 'application/json';
+  } else {
+    const cols = ['timestamp', 'model', 'promptVersionName', 'bufferText', 'command', 'toolCalls', 'resultText', 'success', 'error'];
+    const csvRow = vals => vals.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',');
+    const rows = testLogs.map(e => csvRow([
+      e.timestamp,
+      e.model,
+      e.promptVersionName || '',
+      e.bufferText,
+      e.command,
+      e.toolCalls ? e.toolCalls.map(c => `${c.name}(${JSON.stringify(c.args)})`).join(' | ') : '',
+      e.resultText,
+      e.success,
+      e.error || ''
+    ]));
+    content = '﻿' + [csvRow(cols), ...rows].join('\n');
+    filename = `test-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    mimeType = 'text/csv;charset=utf-8';
+  }
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearTestLogs() {
+  if (!confirm('確定要清除所有測試記錄嗎？')) return;
+  testLogs = [];
+  localStorage.removeItem('testLogs');
+  renderTestLogs();
+}
+
+// === Buffer & Correction ===
 function log(msg, type) {
   const line = document.createElement('div');
   line.className = 'log-line' + (type ? ' ' + type : '');
@@ -225,13 +505,13 @@ function renderBuffer() {
 
 function setExample(s) {
   document.getElementById('initInput').value = s;
-    localStorage.setItem('initInput', s);
+  localStorage.setItem('initInput', s);
   loadBuffer();
 }
 
 function setCmd(s) {
   document.getElementById('cmdInput').value = s;
-    localStorage.setItem('cmdInput', s);
+  localStorage.setItem('cmdInput', s);
 }
 
 function loadBuffer() {
@@ -266,7 +546,6 @@ function reindex() {
 function execTools(calls) {
   let changed = false;
 
-  // 由後往前排序，避免 index 偏移問題
   const sorted = [...calls].sort((a, b) => {
     const getMaxIdx = c => {
       if (c.name === 'replace') return c.args.end_index;
@@ -318,7 +597,6 @@ function execTools(calls) {
   }
 
   if (changed) {
-    // 重新打散成單字元 token
     const finalString = tokens.map(t => t.text).join('');
     tokens = finalString.split('').map((ch, i) => ({ i, text: ch }));
     renderBuffer();
@@ -340,9 +618,27 @@ async function runCorrection() {
   clearLog();
 
   const indexed = tokens.map(t => `[${t.i}:${t.text}]`).join('');
+  const bufferText = tokens.map(t => t.text).join('');
   log('暫存區：' + indexed, 'dim');
   log('修正描述：' + cmd, 'dim');
   log('送出給 ' + model + '...', '');
+
+  const activeVersion = promptVersions.find(v => v.id === activeVersionId);
+  const logEntry = {
+    id: 'log_' + Date.now(),
+    timestamp: new Date().toISOString(),
+    model,
+    promptVersionId: activeVersionId,
+    promptVersionName: activeVersion?.name || null,
+    promptContent: '',
+    buffer: indexed,
+    bufferText,
+    command: cmd,
+    toolCalls: [],
+    resultText: bufferText,
+    success: false,
+    error: null
+  };
 
   try {
     let systemPrompt = currentSystemPrompt;
@@ -353,23 +649,20 @@ async function runCorrection() {
         currentSystemPrompt = systemPrompt;
       } catch (e) {
         log('prompt.txt 讀取失敗：' + e.message, 'err');
+        logEntry.error = 'prompt.txt 讀取失敗：' + e.message;
+        addTestLog(logEntry);
         runBtn.disabled = false;
         runBtn.innerHTML = '送出修正';
         return;
       }
     }
 
-    // 生成拼音輔助資訊
-    const getPinyin = (text) => pinyin(text, { toneType: 'num' });
+    logEntry.promptContent = systemPrompt;
 
-    // 從 indexed 格式 "[0:我][1:的]" 提取純文字並轉拼音
-    const extractAndPinyin = (indexedStr) => {
+    const getPinyin = text => pinyin(text, { toneType: 'num' });
+    const extractAndPinyin = indexedStr => {
       const matches = Array.from(indexedStr.matchAll(/\[(\d+):(.+?)\]/g));
-      return matches.map(match => {
-        const idx = match[1];
-        const char = match[2];
-        return `[${idx}:${getPinyin(char)}]`;
-      }).join('');
+      return matches.map(m => `[${m[1]}:${getPinyin(m[2])}]`).join('');
     };
 
     const cmdPinyin = getPinyin(cmd);
@@ -455,6 +748,7 @@ ${cmd}
 
     if (data.error) {
       log('API 錯誤：' + data.error.message, 'err');
+      logEntry.error = data.error.message;
     } else {
       log('【拼音輔助資訊】', 'info');
       log('  指令拼音：' + cmdPinyin, 'dim');
@@ -466,7 +760,7 @@ ${cmd}
         args: JSON.parse(tc.function.arguments)
       }));
 
-      // [New Insight] Deprecate 'delete' tool: Convert any hallucinatory 'delete' calls to 'replace' with empty string
+      // Convert hallucinated 'delete' tool to 'replace' with empty string
       calls = calls.map(c => {
         if (c.name === 'delete') {
           return {
@@ -483,21 +777,84 @@ ${cmd}
 
       if (!calls || !calls.length) {
         log('OpenAI 沒有回傳 function call', 'err');
+        logEntry.error = '沒有回傳 function call';
       } else {
         log(`OpenAI 回傳 ${calls.length} 個 function call：`, 'info');
-        calls.forEach(c => {
-          log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim');
-        });
+        calls.forEach(c => log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim'));
+        logEntry.toolCalls = calls;
+        logEntry.success = true;
         execTools(calls);
       }
     }
-  } catch(e) {
+  } catch (e) {
     log('發生錯誤：' + e.message, 'err');
+    logEntry.error = e.message;
   }
+
+  logEntry.resultText = tokens.map(t => t.text).join('');
+  addTestLog(logEntry);
 
   runBtn.disabled = false;
   runBtn.innerHTML = '送出修正';
 }
+
+// === Initialization ===
+document.addEventListener('DOMContentLoaded', async () => {
+  const savedApiKey = localStorage.getItem('apiKey');
+  const savedModel = localStorage.getItem('modelSelect');
+  const savedInit = localStorage.getItem('initInput');
+  const savedCmd = localStorage.getItem('cmdInput');
+
+  if (savedApiKey) document.getElementById('apiKey').value = savedApiKey;
+  if (savedModel) document.getElementById('modelSelect').value = savedModel;
+  if (savedInit) { document.getElementById('initInput').value = savedInit; loadBuffer(); }
+  if (savedCmd) document.getElementById('cmdInput').value = savedCmd;
+
+  document.getElementById('apiKey').addEventListener('input', e => localStorage.setItem('apiKey', e.target.value));
+  document.getElementById('modelSelect').addEventListener('change', e => localStorage.setItem('modelSelect', e.target.value));
+  document.getElementById('initInput').addEventListener('input', e => localStorage.setItem('initInput', e.target.value));
+  document.getElementById('cmdInput').addEventListener('input', e => localStorage.setItem('cmdInput', e.target.value));
+
+  // Auto-save draft prompt to localStorage when editing without an active version
+  document.getElementById('promptEditor').addEventListener('input', e => {
+    currentSystemPrompt = e.target.value;
+    if (!activeVersionId) localStorage.setItem('customPrompt', e.target.value);
+  });
+
+  // Load prompt versions
+  loadPromptVersionsFromStorage();
+  activeVersionId = localStorage.getItem('activeVersionId') || null;
+
+  const activeVersion = activeVersionId ? promptVersions.find(v => v.id === activeVersionId) : null;
+  if (activeVersion) {
+    currentSystemPrompt = activeVersion.content;
+    document.getElementById('promptEditor').value = activeVersion.content;
+    document.getElementById('versionName').value = activeVersion.name;
+  } else {
+    // Fall back to legacy customPrompt or prompt.txt
+    const customPrompt = localStorage.getItem('customPrompt');
+    if (customPrompt) {
+      currentSystemPrompt = customPrompt;
+      document.getElementById('promptEditor').value = customPrompt;
+    } else {
+      try {
+        const resp = await fetch('./prompt.txt');
+        const text = await resp.text();
+        currentSystemPrompt = text;
+        document.getElementById('promptEditor').value = text;
+      } catch (e) {
+        console.error('Failed to load default prompt:', e);
+      }
+    }
+  }
+
+  renderVersionSelect();
+  updateActiveVersionBadge();
+
+  // Load test logs
+  loadTestLogsFromStorage();
+  updateLogCountUI();
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
