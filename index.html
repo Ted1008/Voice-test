@@ -40,23 +40,23 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* App header & tabs */
-  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; gap: 16px; }
-  .tabs { display: flex; gap: 4px; }
-  .tab-btn { padding: 7px 16px; font-size: 14px; font-weight: 500; cursor: pointer; border: 0.5px solid transparent; background: none; border-radius: 8px; color: #888; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; gap: 16px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tab-btn { padding: 7px 14px; font-size: 14px; font-weight: 500; cursor: pointer; border: 0.5px solid transparent; background: none; border-radius: 8px; color: #888; }
   .tab-btn.active { color: #3C3489; background: #EEEDFE; border-color: #AFA9EC; }
   .tab-btn:hover:not(.active) { background: #f0f0f0; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
   .count-badge { display: inline-block; background: #3C3489; color: white; border-radius: 999px; font-size: 10px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
 
-  /* Active version indicator in test tab */
+  /* Active version indicator */
   .version-bar { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #999; padding: 4px 0 10px; }
   .version-pill { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 500; }
   .version-pill.named { background: #EEEDFE; color: #3C3489; border: 0.5px solid #AFA9EC; }
   .version-pill.unnamed { background: #f0f0f0; color: #999; border: 0.5px solid #e0e0e0; }
 
   /* Prompt editor */
-  .prompt-editor { width: 100%; height: 400px; padding: 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 13px; font-family: monospace; resize: vertical; margin-bottom: 0; }
+  .prompt-editor { width: 100%; height: 400px; padding: 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 13px; font-family: monospace; resize: vertical; }
 
   /* Test log entries */
   .test-log-entry { border: 0.5px solid #eee; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
@@ -77,6 +77,37 @@
   .detail-value { color: #333; word-break: break-all; }
   .detail-pre { background: #f5f5f3; padding: 8px 10px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; margin-top: 4px; }
   .empty-state { text-align: center; padding: 40px 20px; color: #ccc; font-size: 14px; }
+
+  /* Batch test */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { padding: 7px 10px; background: #f8f8f8; font-size: 11px; color: #666; font-weight: 500; border: 0.5px solid #eee; text-align: left; white-space: nowrap; }
+  .data-table td { padding: 7px 10px; border: 0.5px solid #f0f0f0; vertical-align: top; }
+  .data-table tbody tr:hover td { background: #fafafa; }
+  .model-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .model-pill { padding: 5px 12px; border: 0.5px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 13px; background: white; user-select: none; transition: background 0.1s; }
+  .model-pill:hover { background: #f5f5f3; }
+  .model-pill.selected { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; font-weight: 500; }
+  .progress-bg { background: #eee; border-radius: 999px; height: 5px; margin: 8px 0 4px; }
+  .progress-fill { background: #7F77DD; border-radius: 999px; height: 5px; transition: width 0.15s; width: 0%; }
+  .progress-text { font-size: 11px; color: #aaa; }
+  .summary-grid { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 0.5px solid #eee; }
+  .summary-item { min-width: 80px; }
+  .summary-model-name { font-size: 11px; color: #aaa; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+  .summary-score { font-size: 22px; font-weight: 700; }
+  .summary-score.good { color: #0F6E56; }
+  .summary-score.mid { color: #E07B00; }
+  .summary-score.bad { color: #A32D2D; }
+  .summary-score.na { color: #aaa; }
+  .summary-detail { font-size: 11px; color: #aaa; }
+  .cell-pass { color: #0F6E56; }
+  .cell-fail { color: #A32D2D; }
+  .cell-neutral { color: #185FA5; }
+  .cell-error { color: #aaa; font-style: italic; }
+  .cell-none { color: #bbb; }
+  .add-row { display: grid; grid-template-columns: 120px 1fr 1.5fr 1.5fr auto; gap: 6px; align-items: center; margin-top: 10px; }
+  .add-row input { padding: 7px 10px; border: 0.5px solid #ddd; border-radius: 6px; font-size: 13px; background: #fafafa; flex: unset; }
+  @media (max-width: 680px) { .add-row { grid-template-columns: 1fr; } }
 </style>
 <script src="https://unpkg.com/pinyin-pro"></script>
 </head>
@@ -88,10 +119,11 @@
     <button class="tab-btn active" onclick="switchTab('test-tab', event)">修正測試</button>
     <button class="tab-btn" onclick="switchTab('prompt-tab', event)">Prompt 編輯</button>
     <button class="tab-btn" onclick="switchTab('log-tab', event)">測試記錄<span id="logCountBadge" class="count-badge" style="display:none">0</span></button>
+    <button class="tab-btn" onclick="switchTab('batch-tab', event)">批次測試</button>
   </div>
 </div>
 
-<!-- 修正測試 Tab -->
+<!-- ── 修正測試 Tab ── -->
 <div id="test-tab" class="tab-content active">
 
 <div class="card">
@@ -154,7 +186,7 @@
 
 </div>
 
-<!-- Prompt 編輯 Tab -->
+<!-- ── Prompt 編輯 Tab ── -->
 <div id="prompt-tab" class="tab-content">
   <div class="card">
     <div class="label">版本管理（最多 5 個）</div>
@@ -181,7 +213,7 @@
   </div>
 </div>
 
-<!-- 測試記錄 Tab -->
+<!-- ── 測試記錄 Tab ── -->
 <div id="log-tab" class="tab-content">
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
@@ -198,35 +230,276 @@
   </div>
 </div>
 
+<!-- ── 批次測試 Tab ── -->
+<div id="batch-tab" class="tab-content">
+
+  <!-- 題組管理 -->
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+      <div style="font-size:14px; font-weight:500">
+        標準題組 <span id="caseCount" style="font-size:12px; color:#999; font-weight:400">0 題</span>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button onclick="loadDefaultCases()">載入預設 8 題</button>
+        <button onclick="clearAllCases()" class="btn-danger">清除全部</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:32px">#</th>
+            <th style="min-width:90px">名稱</th>
+            <th style="min-width:130px">暫存區</th>
+            <th style="min-width:160px">修正指令</th>
+            <th style="min-width:130px">預期結果</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="testCaseTbody">
+          <tr><td colspan="6" style="text-align:center; color:#bbb; padding:20px">尚無題目，請載入預設題組或手動新增</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr class="divider">
+    <div class="label">新增題目（名稱和預期結果選填；按 Enter 新增）</div>
+    <div class="add-row">
+      <input type="text" id="newCaseName" placeholder="名稱（選填）" onkeydown="if(event.key==='Enter')addTestCase()" />
+      <input type="text" id="newCaseBuffer" placeholder="暫存區 *" onkeydown="if(event.key==='Enter')addTestCase()" />
+      <input type="text" id="newCaseCommand" placeholder="修正指令 *" onkeydown="if(event.key==='Enter')addTestCase()" />
+      <input type="text" id="newCaseExpected" placeholder="預期結果（選填）" onkeydown="if(event.key==='Enter')addTestCase()" />
+      <button onclick="addTestCase()" class="btn-primary">新增</button>
+    </div>
+  </div>
+
+  <!-- 執行設定 -->
+  <div class="card">
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end">
+      <div style="flex:1; min-width:180px">
+        <div class="label">使用 Prompt 版本</div>
+        <select id="batchVersionSelect" style="width:100%">
+          <option value="">— 目前暫存 Prompt —</option>
+        </select>
+      </div>
+    </div>
+    <div class="label">測試模型（可多選）</div>
+    <div class="model-pills" id="modelPills"></div>
+
+    <div id="progressWrap" style="display:none">
+      <div class="progress-bg"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">準備中...</div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:12px">
+      <button class="btn-primary" id="batchRunBtn" onclick="runBatchTest()">開始批次測試</button>
+      <button id="batchCancelBtn" class="btn-danger" onclick="cancelBatch()" style="display:none">取消</button>
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="card" id="batchResultCard" style="display:none">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+      <div>
+        <span style="font-size:14px; font-weight:500">批次測試結果</span>
+        <span id="batchResultMeta" style="font-size:11px; color:#aaa; margin-left:8px"></span>
+      </div>
+      <button onclick="exportBatchResults()">匯出 CSV</button>
+    </div>
+    <div class="summary-grid" id="batchSummary"></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead id="batchResultHead"></thead>
+        <tbody id="batchResultBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
 <script>
 const { pinyin } = pinyinPro;
 
+// ── Global State ──
 let tokens = [];
 let undoStack = [];
 let currentSystemPrompt = '';
 let promptVersions = [];
 let activeVersionId = null;
 let testLogs = [];
+let standardTestCases = [];
+let selectedBatchModels = new Set(['gpt-4.1-mini', 'gpt-4.1']);
+let lastBatchResult = null;
+let batchCancelled = false;
+let batchAbortController = null;
 
 const bufDisplay = document.getElementById('bufDisplay');
 const logArea = document.getElementById('logArea');
 const undoBtn = document.getElementById('undoBtn');
 const runBtn = document.getElementById('runBtn');
 
-// === Tab Management ===
+const AVAILABLE_MODELS = [
+  'gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5-nano', 'gpt-5-mini',
+  'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o'
+];
+
+const DEFAULT_TEST_CASES = [
+  { name: '同音字（滷肉飯）',   buffer: '我想吃魯肉飯',           command: '魯是水字旁的魯',     expected: '我想吃滷肉飯' },
+  { name: '詞組替換（開心）',   buffer: '今天天氣真好我很開欣',   command: '開欣應該是開心',     expected: '今天天氣真好我很開心' },
+  { name: '詞組替換（理想）',   buffer: '他是一個很有利想的人',   command: '利想應該是理想',     expected: '他是一個很有理想的人' },
+  { name: '同音詞（可愛）',     buffer: '這隻貓咪真的很靠愛',     command: '靠愛應該是可愛',     expected: '這隻貓咪真的很可愛' },
+  { name: '成語定位（亡羊補牢）', buffer: '他叫王大明',           command: '王改成亡羊補牢的亡', expected: '他叫亡大明' },
+  { name: '刪除詞組',           buffer: '我真的很開心',           command: '刪除真的',           expected: '我很開心' },
+  { name: '交換位置',           buffer: '爸媽',                   command: '第二個字移到前面',   expected: '媽爸' },
+  { name: '拆字描述（木子李）', buffer: '我是王小明',             command: '王改成木子李',       expected: '我是李小明' },
+];
+
+// ── Shared API Tools Definition ──
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'replace',
+      description: '替換暫存區中一段連續的字（含刪除）。刪除時將 new_text 設為空字串。',
+      parameters: {
+        type: 'object',
+        properties: {
+          start_index: { type: 'integer', description: '起始字元的 index（含）' },
+          end_index:   { type: 'integer', description: '結束字元的 index（含）' },
+          new_text:    { type: 'string',  description: '新的文字，刪除時填空字串' }
+        },
+        required: ['start_index', 'end_index', 'new_text']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'insert',
+      description: '在特定 index 位置前插入文字',
+      parameters: {
+        type: 'object',
+        properties: {
+          index: { type: 'integer', description: '插入位置的 index（插在該 index 之前）' },
+          text:  { type: 'string',  description: '要插入的文字' }
+        },
+        required: ['index', 'text']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'swap',
+      description: '交換兩個 index 的字的位置',
+      parameters: {
+        type: 'object',
+        properties: {
+          index_a: { type: 'integer', description: '第一個字的 index' },
+          index_b: { type: 'integer', description: '第二個字的 index' }
+        },
+        required: ['index_a', 'index_b']
+      }
+    }
+  }
+];
+
+// ── Shared API Helper ──
+async function callOpenAI(apiKey, model, systemPrompt, bufferText, command, signal) {
+  const toks = bufferText.split('').map((ch, i) => ({ i, text: ch }));
+  const indexed = toks.map(t => `[${t.i}:${t.text}]`).join('');
+
+  const getPinyin = text => pinyin(text, { toneType: 'num' });
+  const cmdPinyin = getPinyin(command);
+  const indexedPinyin = Array.from(indexed.matchAll(/\[(\d+):(.+?)\]/g))
+    .map(m => `[${m[1]}:${getPinyin(m[2])}]`).join('');
+
+  const userContent =
+    `【暫存區】\n${indexed}\n\n【修正描述】\n${command}\n\n` +
+    `【語音輔助資訊（供發音比對參考）】\n- 修正描述拼音：${cmdPinyin}\n- 暫存區拼音：${indexedPinyin}`;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    signal,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userContent }
+      ],
+      tools: TOOLS,
+      tool_choice: 'required'
+    })
+  });
+
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error.message);
+
+  const raw = (data.choices?.[0]?.message?.tool_calls || []).map(tc => ({
+    name: tc.function.name,
+    args: JSON.parse(tc.function.arguments)
+  }));
+
+  // Normalize hallucinated 'delete' → 'replace' with empty string
+  const calls = raw.map(c => c.name === 'delete' ? {
+    name: 'replace',
+    args: {
+      start_index: c.args.start_index ?? c.args.index,
+      end_index:   c.args.end_index   ?? c.args.index,
+      new_text: ''
+    }
+  } : c);
+
+  return { indexed, cmdPinyin, indexedPinyin, calls };
+}
+
+// Apply tool calls to a plain-text buffer without touching global state
+function applyToolCallsToPure(bufferText, calls) {
+  let toks = bufferText.split('').map((ch, i) => ({ i, text: ch }));
+
+  const sorted = [...calls].sort((a, b) => {
+    const maxIdx = c => {
+      if (c.name === 'replace') return c.args.end_index;
+      if (c.name === 'insert')  return c.args.index;
+      if (c.name === 'swap')    return Math.max(c.args.index_a, c.args.index_b);
+      return 0;
+    };
+    return maxIdx(b) - maxIdx(a);
+  });
+
+  for (const { name, args } of sorted) {
+    if (name === 'replace') {
+      const { start_index: s, end_index: e, new_text: t } = args;
+      if (s >= 0 && e < toks.length && s <= e) toks.splice(s, e - s + 1, { text: t });
+    } else if (name === 'insert') {
+      const at = Math.max(0, Math.min(args.index, toks.length));
+      toks.splice(at, 0, { text: args.text });
+    } else if (name === 'swap') {
+      const { index_a: a, index_b: b } = args;
+      if (a >= 0 && b >= 0 && a < toks.length && b < toks.length) {
+        [toks[a].text, toks[b].text] = [toks[b].text, toks[a].text];
+      }
+    }
+  }
+
+  return toks.map(t => t.text).join('');
+}
+
+// ── Tab Management ──
 function switchTab(tabId, event) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
-  const btn = event.target.closest('.tab-btn');
-  if (btn) btn.classList.add('active');
+  event.target.closest('.tab-btn').classList.add('active');
   if (tabId === 'log-tab') renderTestLogs();
 }
 
-// === Prompt Version Management ===
+// ── Prompt Version Management ──
 function loadPromptVersionsFromStorage() {
-  const stored = localStorage.getItem('promptVersions');
-  promptVersions = stored ? JSON.parse(stored) : [];
+  const s = localStorage.getItem('promptVersions');
+  promptVersions = s ? JSON.parse(s) : [];
 }
 
 function savePromptVersionsToStorage() {
@@ -234,64 +507,64 @@ function savePromptVersionsToStorage() {
 }
 
 function renderVersionSelect() {
-  const select = document.getElementById('versionSelect');
-  select.innerHTML = '<option value="">— 選擇版本 —</option>';
+  const sel = document.getElementById('versionSelect');
+  sel.innerHTML = '<option value="">— 選擇版本 —</option>';
   promptVersions.forEach(v => {
     const opt = document.createElement('option');
     opt.value = v.id;
-    const date = new Date(v.createdAt).toLocaleDateString('zh-TW');
-    opt.textContent = `${v.name}  (${date})`;
+    opt.textContent = `${v.name}  (${new Date(v.createdAt).toLocaleDateString('zh-TW')})`;
     if (v.id === activeVersionId) opt.selected = true;
-    select.appendChild(opt);
+    sel.appendChild(opt);
   });
+  syncBatchVersionSelect();
+}
+
+function syncBatchVersionSelect() {
+  const sel = document.getElementById('batchVersionSelect');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— 目前暫存 Prompt —</option>';
+  promptVersions.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.name;
+    sel.appendChild(opt);
+  });
+  if (cur && promptVersions.find(v => v.id === cur)) sel.value = cur;
 }
 
 function updateActiveVersionBadge() {
   const badge = document.getElementById('activeVersionBadge');
-  const version = promptVersions.find(v => v.id === activeVersionId);
-  if (version) {
-    badge.textContent = version.name;
-    badge.className = 'version-pill named';
-  } else {
-    badge.textContent = '未命名（暫存）';
-    badge.className = 'version-pill unnamed';
-  }
+  const ver = promptVersions.find(v => v.id === activeVersionId);
+  if (ver) { badge.textContent = ver.name; badge.className = 'version-pill named'; }
+  else      { badge.textContent = '未命名（暫存）'; badge.className = 'version-pill unnamed'; }
 }
 
 function loadSelectedVersion() {
   const id = document.getElementById('versionSelect').value;
   if (!id) { alert('請先選擇一個版本'); return; }
-  const version = promptVersions.find(v => v.id === id);
-  if (!version) return;
+  const ver = promptVersions.find(v => v.id === id);
+  if (!ver) return;
   activeVersionId = id;
   localStorage.setItem('activeVersionId', id);
-  currentSystemPrompt = version.content;
-  document.getElementById('promptEditor').value = version.content;
-  document.getElementById('versionName').value = version.name;
+  currentSystemPrompt = ver.content;
+  document.getElementById('promptEditor').value = ver.content;
+  document.getElementById('versionName').value = ver.name;
   renderVersionSelect();
   updateActiveVersionBadge();
-  alert(`已載入版本「${version.name}」`);
+  alert(`已載入版本「${ver.name}」`);
 }
 
 function saveAsVersion() {
   const name = document.getElementById('versionName').value.trim();
   if (!name) { alert('請輸入版本名稱'); return; }
-  if (promptVersions.length >= 5) {
-    alert('最多只能儲存 5 個版本，請先刪除一個版本。');
-    return;
-  }
-  const content = document.getElementById('promptEditor').value;
-  const version = {
-    id: 'v_' + Date.now(),
-    name,
-    content,
-    createdAt: new Date().toISOString()
-  };
-  promptVersions.push(version);
-  activeVersionId = version.id;
-  localStorage.setItem('activeVersionId', version.id);
+  if (promptVersions.length >= 5) { alert('最多只能儲存 5 個版本，請先刪除一個版本。'); return; }
+  const ver = { id: 'v_' + Date.now(), name, content: document.getElementById('promptEditor').value, createdAt: new Date().toISOString() };
+  promptVersions.push(ver);
+  activeVersionId = ver.id;
+  localStorage.setItem('activeVersionId', ver.id);
   savePromptVersionsToStorage();
-  currentSystemPrompt = content;
+  currentSystemPrompt = ver.content;
   renderVersionSelect();
   updateActiveVersionBadge();
   alert(`版本「${name}」已儲存`);
@@ -299,26 +572,22 @@ function saveAsVersion() {
 
 function updateCurrentVersion() {
   if (!activeVersionId) { alert('尚未選擇版本，請先「另存新版本」'); return; }
-  const version = promptVersions.find(v => v.id === activeVersionId);
-  if (!version) { alert('找不到目前版本，請重新選擇'); return; }
-  version.content = document.getElementById('promptEditor').value;
-  version.updatedAt = new Date().toISOString();
+  const ver = promptVersions.find(v => v.id === activeVersionId);
+  if (!ver) { alert('找不到目前版本，請重新選擇'); return; }
+  ver.content = document.getElementById('promptEditor').value;
+  ver.updatedAt = new Date().toISOString();
   savePromptVersionsToStorage();
-  currentSystemPrompt = version.content;
-  alert(`版本「${version.name}」已更新`);
+  currentSystemPrompt = ver.content;
+  alert(`版本「${ver.name}」已更新`);
 }
 
 function deleteSelectedVersion() {
   const id = document.getElementById('versionSelect').value;
   if (!id) { alert('請先選擇要刪除的版本'); return; }
-  const version = promptVersions.find(v => v.id === id);
-  if (!version) return;
-  if (!confirm(`確定要刪除版本「${version.name}」嗎？`)) return;
+  const ver = promptVersions.find(v => v.id === id);
+  if (!ver || !confirm(`確定要刪除版本「${ver.name}」嗎？`)) return;
   promptVersions = promptVersions.filter(v => v.id !== id);
-  if (activeVersionId === id) {
-    activeVersionId = null;
-    localStorage.removeItem('activeVersionId');
-  }
+  if (activeVersionId === id) { activeVersionId = null; localStorage.removeItem('activeVersionId'); }
   savePromptVersionsToStorage();
   renderVersionSelect();
   updateActiveVersionBadge();
@@ -327,8 +596,7 @@ function deleteSelectedVersion() {
 async function resetPrompt() {
   if (!confirm('確定要從 prompt.txt 重新載入預設 Prompt？目前的編輯將被覆蓋（已存版本不受影響）。')) return;
   try {
-    const resp = await fetch('./prompt.txt');
-    const text = await resp.text();
+    const text = await (await fetch('./prompt.txt')).text();
     currentSystemPrompt = text;
     document.getElementById('promptEditor').value = text;
     activeVersionId = null;
@@ -337,15 +605,13 @@ async function resetPrompt() {
     updateActiveVersionBadge();
     renderVersionSelect();
     alert('已重設為 prompt.txt 預設 Prompt');
-  } catch (e) {
-    alert('讀取 prompt.txt 失敗');
-  }
+  } catch { alert('讀取 prompt.txt 失敗'); }
 }
 
-// === Test Log Management ===
+// ── Test Log Management ──
 function loadTestLogsFromStorage() {
-  const stored = localStorage.getItem('testLogs');
-  testLogs = stored ? JSON.parse(stored) : [];
+  const s = localStorage.getItem('testLogs');
+  testLogs = s ? JSON.parse(s) : [];
 }
 
 function saveTestLogsToStorage() {
@@ -371,31 +637,21 @@ function updateLogCountUI() {
 function renderTestLogs() {
   const list = document.getElementById('testLogList');
   updateLogCountUI();
-  if (!testLogs.length) {
-    list.innerHTML = '<div class="empty-state">尚無測試記錄</div>';
-    return;
-  }
+  if (!testLogs.length) { list.innerHTML = '<div class="empty-state">尚無測試記錄</div>'; return; }
   list.innerHTML = '';
   [...testLogs].reverse().forEach(entry => {
     const el = document.createElement('div');
     el.className = 'test-log-entry';
-
     const timeStr = new Date(entry.timestamp).toLocaleString('zh-TW');
-    const toolCallStr = entry.toolCalls && entry.toolCalls.length
+    const toolCallStr = entry.toolCalls?.length
       ? entry.toolCalls.map(c => `${c.name}(${JSON.stringify(c.args)})`).join('\n')
       : '（無 tool call）';
     const promptTagHtml = entry.promptVersionName
       ? `<span class="tag tag-prompt">${entry.promptVersionName}</span>`
       : `<span class="tag tag-draft">暫存</span>`;
     const resultClass = entry.success ? 'ok' : 'err';
-    const resultIcon = entry.success ? '✓' : '✗';
-    const resultDisplay = entry.error
-      ? `✗ ${entry.error}`
-      : `${resultIcon} ${entry.resultText || '—'}`;
-
-    const promptContentHtml = entry.promptContent
-      ? entry.promptContent.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      : '—';
+    const resultDisplay = entry.error ? `✗ ${entry.error}` : `${entry.success ? '✓' : '✗'} ${entry.resultText || '—'}`;
+    const promptHtml = (entry.promptContent || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 
     el.innerHTML = `
       <div class="test-log-header">
@@ -406,73 +662,46 @@ function renderTestLogs() {
         <span class="test-log-result ${resultClass}">${resultDisplay}</span>
       </div>
       <div class="test-log-detail">
-        <div class="detail-section">
-          <div class="detail-label">暫存區（修正前）</div>
-          <div class="detail-value">${entry.bufferText} <span style="color:#bbb;font-size:11px">${entry.buffer}</span></div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">修正指令</div>
-          <div class="detail-value">${entry.command}</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">Tool Calls 回傳</div>
-          <div class="detail-pre">${toolCallStr}</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">修正結果</div>
-          <div class="detail-value" style="font-size:16px;font-weight:500">${entry.resultText || '—'}</div>
-        </div>
+        <div class="detail-section"><div class="detail-label">暫存區（修正前）</div>
+          <div class="detail-value">${entry.bufferText} <span style="color:#bbb;font-size:11px">${entry.buffer}</span></div></div>
+        <div class="detail-section"><div class="detail-label">修正指令</div>
+          <div class="detail-value">${entry.command}</div></div>
+        <div class="detail-section"><div class="detail-label">Tool Calls 回傳</div>
+          <div class="detail-pre">${toolCallStr}</div></div>
+        <div class="detail-section"><div class="detail-label">修正結果</div>
+          <div class="detail-value" style="font-size:16px;font-weight:500">${entry.resultText || '—'}</div></div>
         ${entry.error ? `<div class="detail-section"><div class="detail-label" style="color:#A32D2D">錯誤訊息</div><div class="detail-value" style="color:#A32D2D">${entry.error}</div></div>` : ''}
-        <div class="detail-section">
-          <div class="detail-label">Prompt 版本：${entry.promptVersionName || '暫存'}</div>
-          <div class="detail-pre">${promptContentHtml}</div>
-        </div>
-      </div>
-    `;
+        <div class="detail-section"><div class="detail-label">Prompt 版本：${entry.promptVersionName || '暫存'}</div>
+          <div class="detail-pre">${promptHtml}</div></div>
+      </div>`;
 
     el.querySelector('.test-log-header').addEventListener('click', () => {
-      const detail = el.querySelector('.test-log-detail');
-      detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
+      const d = el.querySelector('.test-log-detail');
+      d.style.display = d.style.display === 'block' ? 'none' : 'block';
     });
-
     list.appendChild(el);
   });
 }
 
 function exportLogs(format) {
   if (!testLogs.length) { alert('尚無測試記錄'); return; }
-  let content, filename, mimeType;
-
+  let content, filename, mime;
   if (format === 'json') {
     content = JSON.stringify(testLogs, null, 2);
-    filename = `test-logs-${new Date().toISOString().slice(0, 10)}.json`;
-    mimeType = 'application/json';
+    filename = `test-logs-${new Date().toISOString().slice(0,10)}.json`;
+    mime = 'application/json';
   } else {
-    const cols = ['timestamp', 'model', 'promptVersionName', 'bufferText', 'command', 'toolCalls', 'resultText', 'success', 'error'];
-    const csvRow = vals => vals.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',');
-    const rows = testLogs.map(e => csvRow([
-      e.timestamp,
-      e.model,
-      e.promptVersionName || '',
-      e.bufferText,
-      e.command,
-      e.toolCalls ? e.toolCalls.map(c => `${c.name}(${JSON.stringify(c.args)})`).join(' | ') : '',
-      e.resultText,
-      e.success,
-      e.error || ''
-    ]));
-    content = '﻿' + [csvRow(cols), ...rows].join('\n');
-    filename = `test-logs-${new Date().toISOString().slice(0, 10)}.csv`;
-    mimeType = 'text/csv;charset=utf-8';
+    const cols = ['timestamp','model','promptVersionName','bufferText','command','toolCalls','resultText','success','error'];
+    const q = v => `"${String(v??'').replace(/"/g,'""')}"`;
+    const rows = testLogs.map(e => cols.map(h => {
+      if (h === 'toolCalls') return q(e.toolCalls?.map(c=>`${c.name}(${JSON.stringify(c.args)})`).join(' | ')||'');
+      return q(e[h]);
+    }).join(','));
+    content = '﻿' + [cols.join(','), ...rows].join('\n');
+    filename = `test-logs-${new Date().toISOString().slice(0,10)}.csv`;
+    mime = 'text/csv;charset=utf-8';
   }
-
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  download(content, filename, mime);
 }
 
 function clearTestLogs() {
@@ -482,7 +711,7 @@ function clearTestLogs() {
   renderTestLogs();
 }
 
-// === Buffer & Correction ===
+// ── Buffer & Single Correction ──
 function log(msg, type) {
   const line = document.createElement('div');
   line.className = 'log-line' + (type ? ' ' + type : '');
@@ -490,117 +719,64 @@ function log(msg, type) {
   logArea.appendChild(line);
   logArea.scrollTop = logArea.scrollHeight;
 }
-
 function clearLog() { logArea.innerHTML = ''; }
 
 function renderBuffer() {
-  if (!tokens.length) {
-    bufDisplay.textContent = '（空）';
-    bufDisplay.className = 'buffer-display empty';
-    return;
-  }
+  if (!tokens.length) { bufDisplay.textContent = '（空）'; bufDisplay.className = 'buffer-display empty'; return; }
   bufDisplay.textContent = tokens.map(t => t.text).join('');
   bufDisplay.className = 'buffer-display';
 }
 
-function setExample(s) {
-  document.getElementById('initInput').value = s;
-  localStorage.setItem('initInput', s);
-  loadBuffer();
-}
-
-function setCmd(s) {
-  document.getElementById('cmdInput').value = s;
-  localStorage.setItem('cmdInput', s);
-}
+function setExample(s) { document.getElementById('initInput').value = s; localStorage.setItem('initInput', s); loadBuffer(); }
+function setCmd(s) { document.getElementById('cmdInput').value = s; localStorage.setItem('cmdInput', s); }
 
 function loadBuffer() {
   const val = document.getElementById('initInput').value.trim();
   if (!val) return;
   pushUndo();
   tokens = val.split('').map((ch, i) => ({ i, text: ch }));
-  renderBuffer();
-  clearLog();
+  renderBuffer(); clearLog();
   log('載入：' + val, 'info');
   log('內部結構：' + tokens.map(t => `[${t.i}:${t.text}]`).join(''), 'dim');
 }
 
-function pushUndo() {
-  undoStack.push(JSON.parse(JSON.stringify(tokens)));
-  undoBtn.disabled = false;
-}
-
+function pushUndo() { undoStack.push(JSON.parse(JSON.stringify(tokens))); undoBtn.disabled = false; }
 function doUndo() {
   if (!undoStack.length) return;
   tokens = undoStack.pop();
-  reindex();
-  renderBuffer();
-  log('已復原', 'ok');
-  if (!undoStack.length) undoBtn.disabled = true;
-}
-
-function reindex() {
   tokens.forEach((t, i) => t.i = i);
+  renderBuffer(); log('已復原', 'ok');
+  if (!undoStack.length) undoBtn.disabled = true;
 }
 
 function execTools(calls) {
   let changed = false;
-
   const sorted = [...calls].sort((a, b) => {
-    const getMaxIdx = c => {
-      if (c.name === 'replace') return c.args.end_index;
-      if (c.name === 'insert') return c.args.index;
-      if (c.name === 'swap') return Math.max(c.args.index_a, c.args.index_b);
-      return 0;
-    };
-    return getMaxIdx(b) - getMaxIdx(a);
+    const maxIdx = c => { if (c.name==='replace') return c.args.end_index; if (c.name==='insert') return c.args.index; if (c.name==='swap') return Math.max(c.args.index_a,c.args.index_b); return 0; };
+    return maxIdx(b) - maxIdx(a);
   });
-
-  for (const call of sorted) {
-    const { name, args } = call;
-
+  for (const { name, args } of sorted) {
     if (name === 'replace') {
-      const { start_index, end_index, new_text } = args;
-      if (start_index < 0 || end_index >= tokens.length || start_index > end_index) {
-        log(`replace: index 超出範圍 (${start_index}-${end_index})`, 'err'); continue;
-      }
-      const old = tokens.slice(start_index, end_index + 1).map(t => t.text).join('');
-      tokens.splice(start_index, end_index - start_index + 1, { text: new_text });
-      if (new_text === '') {
-        log(`replace(${start_index}, ${end_index}, "") — 刪除 "${old}"`, 'ok');
-      } else {
-        log(`replace(${start_index}, ${end_index}, "${new_text}") — "${old}" → "${new_text}"`, 'ok');
-      }
+      const { start_index: s, end_index: e, new_text: t } = args;
+      if (s < 0 || e >= tokens.length || s > e) { log(`replace: index 超出範圍 (${s}-${e})`, 'err'); continue; }
+      const old = tokens.slice(s, e+1).map(t=>t.text).join('');
+      tokens.splice(s, e-s+1, { text: t });
+      log(t==='' ? `replace(${s},${e},"") — 刪除 "${old}"` : `replace(${s},${e},"${t}") — "${old}" → "${t}"`, 'ok');
       changed = true;
-
     } else if (name === 'insert') {
-      const { index, text } = args;
-      const insertAt = Math.max(0, Math.min(index, tokens.length));
-      tokens.splice(insertAt, 0, { text });
-      log(`insert(${insertAt}, "${text}")`, 'ok');
-      changed = true;
-
+      const at = Math.max(0, Math.min(args.index, tokens.length));
+      tokens.splice(at, 0, { text: args.text });
+      log(`insert(${at}, "${args.text}")`, 'ok'); changed = true;
     } else if (name === 'swap') {
-      const { index_a, index_b } = args;
-      if (index_a < 0 || index_b < 0 || index_a >= tokens.length || index_b >= tokens.length) {
-        log(`swap: index 超出範圍`, 'err'); continue;
-      }
-      const ta = tokens[index_a].text;
-      const tb = tokens[index_b].text;
-      [tokens[index_a].text, tokens[index_b].text] = [tb, ta];
-      log(`swap(${index_a}, ${index_b}) — "${ta}" ↔ "${tb}"`, 'ok');
-      changed = true;
-
-    } else {
-      log(`未知 tool: ${name}`, 'err');
-    }
+      const { index_a: a, index_b: b } = args;
+      if (a<0||b<0||a>=tokens.length||b>=tokens.length) { log('swap: index 超出範圍', 'err'); continue; }
+      [tokens[a].text, tokens[b].text] = [tokens[b].text, tokens[a].text];
+      log(`swap(${a},${b}) — "${tokens[b].text}" ↔ "${tokens[a].text}"`, 'ok'); changed = true;
+    } else { log(`未知 tool: ${name}`, 'err'); }
   }
-
   if (changed) {
-    const finalString = tokens.map(t => t.text).join('');
-    tokens = finalString.split('').map((ch, i) => ({ i, text: ch }));
-    renderBuffer();
-    log('結果：' + tokens.map(t => t.text).join(''), 'info');
+    tokens = tokens.map(t=>t.text).join('').split('').map((ch,i)=>({i,text:ch}));
+    renderBuffer(); log('結果：' + tokens.map(t=>t.text).join(''), 'info');
   }
 }
 
@@ -609,258 +785,357 @@ async function runCorrection() {
   const model = document.getElementById('modelSelect').value;
   const cmd = document.getElementById('cmdInput').value.trim();
   if (!apiKey) { log('請輸入 API key', 'err'); return; }
-  if (!cmd) return;
-  if (!tokens.length) { log('請先載入句子', 'err'); return; }
+  if (!cmd || !tokens.length) { if (!tokens.length) log('請先載入句子', 'err'); return; }
 
   pushUndo();
   runBtn.disabled = true;
   runBtn.innerHTML = '<span class="spinner"></span>處理中...';
   clearLog();
 
-  const indexed = tokens.map(t => `[${t.i}:${t.text}]`).join('');
-  const bufferText = tokens.map(t => t.text).join('');
+  const bufferText = tokens.map(t=>t.text).join('');
+  const indexed = tokens.map(t=>`[${t.i}:${t.text}]`).join('');
   log('暫存區：' + indexed, 'dim');
   log('修正描述：' + cmd, 'dim');
   log('送出給 ' + model + '...', '');
 
   const activeVersion = promptVersions.find(v => v.id === activeVersionId);
   const logEntry = {
-    id: 'log_' + Date.now(),
-    timestamp: new Date().toISOString(),
-    model,
-    promptVersionId: activeVersionId,
-    promptVersionName: activeVersion?.name || null,
-    promptContent: '',
-    buffer: indexed,
-    bufferText,
-    command: cmd,
-    toolCalls: [],
-    resultText: bufferText,
-    success: false,
-    error: null
+    id: 'log_' + Date.now(), timestamp: new Date().toISOString(),
+    model, promptVersionId: activeVersionId,
+    promptVersionName: activeVersion?.name || null, promptContent: '',
+    buffer: indexed, bufferText, command: cmd, toolCalls: [],
+    resultText: bufferText, success: false, error: null
   };
 
   try {
     let systemPrompt = currentSystemPrompt;
     if (!systemPrompt) {
-      try {
-        const promptResp = await fetch('./prompt.txt');
-        systemPrompt = await promptResp.text();
-        currentSystemPrompt = systemPrompt;
-      } catch (e) {
-        log('prompt.txt 讀取失敗：' + e.message, 'err');
-        logEntry.error = 'prompt.txt 讀取失敗：' + e.message;
-        addTestLog(logEntry);
-        runBtn.disabled = false;
-        runBtn.innerHTML = '送出修正';
-        return;
-      }
+      try { systemPrompt = await (await fetch('./prompt.txt')).text(); currentSystemPrompt = systemPrompt; }
+      catch (e) { log('prompt.txt 讀取失敗：' + e.message, 'err'); logEntry.error = e.message; addTestLog(logEntry); runBtn.disabled=false; runBtn.innerHTML='送出修正'; return; }
     }
-
     logEntry.promptContent = systemPrompt;
 
-    const getPinyin = text => pinyin(text, { toneType: 'num' });
-    const extractAndPinyin = indexedStr => {
-      const matches = Array.from(indexedStr.matchAll(/\[(\d+):(.+?)\]/g));
-      return matches.map(m => `[${m[1]}:${getPinyin(m[2])}]`).join('');
-    };
+    const { cmdPinyin, indexedPinyin, calls } = await callOpenAI(apiKey, model, systemPrompt, bufferText, cmd);
+    log('【拼音輔助資訊】', 'info');
+    log('  指令拼音：' + cmdPinyin, 'dim');
+    log('  暫存區拼音：' + indexedPinyin, 'dim');
 
-    const cmdPinyin = getPinyin(cmd);
-    const indexedPinyin = extractAndPinyin(indexed);
-
-    const userContent = `【暫存區】
-${indexed}
-
-【修正描述】
-${cmd}
-
-【語音輔助資訊（供發音比對參考）】
-- 修正描述拼音：${cmdPinyin}
-- 暫存區拼音：${indexedPinyin}`;
-
-    const tools = [
-      {
-        type: "function",
-        function: {
-          name: "replace",
-          description: "替換暫存區中一段連續的字（含刪除）。刪除時將 new_text 設為空字串。",
-          parameters: {
-            type: "object",
-            properties: {
-              start_index: { type: "integer", description: "起始字元的 index（含）" },
-              end_index: { type: "integer", description: "結束字元的 index（含）" },
-              new_text: { type: "string", description: "新的文字，刪除時填空字串" }
-            },
-            required: ["start_index", "end_index", "new_text"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "insert",
-          description: "在特定 index 位置前插入文字",
-          parameters: {
-            type: "object",
-            properties: {
-              index: { type: "integer", description: "插入位置的 index（插在該 index 之前）" },
-              text: { type: "string", description: "要插入的文字" }
-            },
-            required: ["index", "text"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "swap",
-          description: "交換兩個 index 的字的位置",
-          parameters: {
-            type: "object",
-            properties: {
-              index_a: { type: "integer", description: "第一個字的 index" },
-              index_b: { type: "integer", description: "第二個字的 index" }
-            },
-            required: ["index_a", "index_b"]
-          }
-        }
-      }
-    ];
-
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model || 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent }
-        ],
-        tools,
-        tool_choice: 'required'
-      })
-    });
-
-    const data = await resp.json();
-
-    if (data.error) {
-      log('API 錯誤：' + data.error.message, 'err');
-      logEntry.error = data.error.message;
-    } else {
-      log('【拼音輔助資訊】', 'info');
-      log('  指令拼音：' + cmdPinyin, 'dim');
-      log('  暫存區拼音：' + indexedPinyin, 'dim');
-
-      const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
-      let calls = toolCalls.map(tc => ({
-        name: tc.function.name,
-        args: JSON.parse(tc.function.arguments)
-      }));
-
-      // Convert hallucinated 'delete' tool to 'replace' with empty string
-      calls = calls.map(c => {
-        if (c.name === 'delete') {
-          return {
-            name: 'replace',
-            args: {
-              start_index: c.args.start_index !== undefined ? c.args.start_index : c.args.index,
-              end_index: c.args.end_index !== undefined ? c.args.end_index : c.args.index,
-              new_text: ''
-            }
-          };
-        }
-        return c;
-      });
-
-      if (!calls || !calls.length) {
-        log('OpenAI 沒有回傳 function call', 'err');
-        logEntry.error = '沒有回傳 function call';
-      } else {
-        log(`OpenAI 回傳 ${calls.length} 個 function call：`, 'info');
-        calls.forEach(c => log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim'));
-        logEntry.toolCalls = calls;
-        logEntry.success = true;
-        execTools(calls);
-      }
+    if (!calls.length) { log('OpenAI 沒有回傳 function call', 'err'); logEntry.error = '沒有回傳 function call'; }
+    else {
+      log(`OpenAI 回傳 ${calls.length} 個 function call：`, 'info');
+      calls.forEach(c => log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim'));
+      logEntry.toolCalls = calls; logEntry.success = true;
+      execTools(calls);
     }
-  } catch (e) {
-    log('發生錯誤：' + e.message, 'err');
-    logEntry.error = e.message;
-  }
+  } catch (e) { log('發生錯誤：' + e.message, 'err'); logEntry.error = e.message; }
 
-  logEntry.resultText = tokens.map(t => t.text).join('');
+  logEntry.resultText = tokens.map(t=>t.text).join('');
   addTestLog(logEntry);
-
-  runBtn.disabled = false;
-  runBtn.innerHTML = '送出修正';
+  runBtn.disabled = false; runBtn.innerHTML = '送出修正';
 }
 
-// === Initialization ===
+// ── Test Case Management ──
+function loadTestCasesFromStorage() {
+  const s = localStorage.getItem('standardTestCases');
+  standardTestCases = s ? JSON.parse(s) : [];
+}
+
+function saveTestCasesToStorage() {
+  localStorage.setItem('standardTestCases', JSON.stringify(standardTestCases));
+}
+
+function renderTestCaseTable() {
+  const tbody = document.getElementById('testCaseTbody');
+  document.getElementById('caseCount').textContent = standardTestCases.length + ' 題';
+  if (!standardTestCases.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#bbb;padding:20px">尚無題目，請載入預設題組或手動新增</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  standardTestCases.forEach((tc, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#aaa">${i+1}</td>
+      <td>${tc.name}</td>
+      <td>${tc.buffer}</td>
+      <td>${tc.command}</td>
+      <td style="color:${tc.expected?'#0F6E56':'#bbb'}">${tc.expected||'—'}</td>
+      <td><button onclick="deleteTestCase('${tc.id}')" style="padding:3px 8px;font-size:12px;color:#A32D2D;border-color:#eee">刪</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function addTestCase() {
+  const name = document.getElementById('newCaseName').value.trim();
+  const buffer = document.getElementById('newCaseBuffer').value.trim();
+  const command = document.getElementById('newCaseCommand').value.trim();
+  const expected = document.getElementById('newCaseExpected').value.trim();
+  if (!buffer || !command) { alert('請填寫暫存區和修正指令'); return; }
+  standardTestCases.push({ id: 'tc_' + Date.now(), name: name || `${buffer}→${command.slice(0,8)}`, buffer, command, expected });
+  saveTestCasesToStorage(); renderTestCaseTable();
+  ['newCaseName','newCaseBuffer','newCaseCommand','newCaseExpected'].forEach(id => document.getElementById(id).value = '');
+}
+
+function deleteTestCase(id) {
+  standardTestCases = standardTestCases.filter(tc => tc.id !== id);
+  saveTestCasesToStorage(); renderTestCaseTable();
+}
+
+function clearAllCases() {
+  if (!standardTestCases.length || !confirm('確定要清除所有題目嗎？')) return;
+  standardTestCases = []; saveTestCasesToStorage(); renderTestCaseTable();
+}
+
+function loadDefaultCases() {
+  if (standardTestCases.length && !confirm('載入預設題組將取代目前所有題目，確定嗎？')) return;
+  standardTestCases = DEFAULT_TEST_CASES.map(tc => ({ ...tc, id: 'tc_' + Math.random().toString(36).slice(2) }));
+  saveTestCasesToStorage(); renderTestCaseTable();
+}
+
+// ── Model Pills ──
+function renderModelPills() {
+  const container = document.getElementById('modelPills');
+  container.innerHTML = '';
+  AVAILABLE_MODELS.forEach(model => {
+    const pill = document.createElement('button');
+    pill.className = 'model-pill' + (selectedBatchModels.has(model) ? ' selected' : '');
+    pill.textContent = model;
+    pill.onclick = () => {
+      if (selectedBatchModels.has(model)) { selectedBatchModels.delete(model); pill.classList.remove('selected'); }
+      else { selectedBatchModels.add(model); pill.classList.add('selected'); }
+    };
+    container.appendChild(pill);
+  });
+}
+
+// ── Batch Test ──
+async function runBatchTest() {
+  if (!standardTestCases.length) { alert('請先新增測試題目'); return; }
+  if (!selectedBatchModels.size) { alert('請選擇至少一個模型'); return; }
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { alert('請先在「修正測試」Tab 輸入 API key'); return; }
+
+  const promptVersionId = document.getElementById('batchVersionSelect').value;
+  let promptContent = '';
+  if (promptVersionId) {
+    promptContent = promptVersions.find(v => v.id === promptVersionId)?.content || '';
+  }
+  if (!promptContent) {
+    promptContent = currentSystemPrompt;
+    if (!promptContent) {
+      try { promptContent = await (await fetch('./prompt.txt')).text(); currentSystemPrompt = promptContent; }
+      catch { alert('無法讀取 prompt，請先在 Prompt 編輯 Tab 設定'); return; }
+    }
+  }
+
+  const models = [...selectedBatchModels];
+  const total = standardTestCases.length * models.length;
+  let done = 0;
+
+  batchCancelled = false;
+  batchAbortController = new AbortController();
+  document.getElementById('batchRunBtn').disabled = true;
+  document.getElementById('batchCancelBtn').style.display = '';
+  document.getElementById('batchCancelBtn').disabled = false;
+  document.getElementById('progressWrap').style.display = '';
+  document.getElementById('batchResultCard').style.display = 'none';
+
+  const activeVer = promptVersionId ? promptVersions.find(v => v.id === promptVersionId) : null;
+  lastBatchResult = {
+    id: 'batch_' + Date.now(), timestamp: new Date().toISOString(),
+    promptVersionId, promptVersionName: activeVer?.name || null, promptContent,
+    models, rows: []
+  };
+
+  for (const tc of standardTestCases) {
+    if (batchCancelled) break;
+    const row = { testCaseId: tc.id, testCaseName: tc.name, buffer: tc.buffer, command: tc.command, expected: tc.expected, modelResults: {} };
+
+    for (const model of models) {
+      if (batchCancelled) break;
+      setBatchProgress(done, total, `${tc.name}  ×  ${model}`);
+      try {
+        const { calls } = await callOpenAI(apiKey, model, promptContent, tc.buffer, tc.command, batchAbortController.signal);
+        const resultText = applyToolCallsToPure(tc.buffer, calls);
+        const pass = tc.expected ? resultText === tc.expected : null;
+        row.modelResults[model] = { calls, resultText, success: calls.length > 0, pass, error: null };
+      } catch (e) {
+        if (e.name === 'AbortError') row.modelResults[model] = { calls: [], resultText: '', success: false, pass: null, error: '已取消' };
+        else row.modelResults[model] = { calls: [], resultText: '', success: false, pass: null, error: e.message };
+      }
+      done++;
+    }
+    lastBatchResult.rows.push(row);
+  }
+
+  document.getElementById('batchRunBtn').disabled = false;
+  document.getElementById('batchCancelBtn').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  if (!batchCancelled || lastBatchResult.rows.length > 0) renderBatchResults();
+}
+
+function cancelBatch() {
+  batchCancelled = true;
+  if (batchAbortController) batchAbortController.abort();
+  document.getElementById('batchCancelBtn').disabled = true;
+  document.getElementById('progressText').textContent = '正在取消...';
+}
+
+function setBatchProgress(done, total, label) {
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `執行中 ${done}/${total}：${label}`;
+}
+
+function renderBatchResults() {
+  if (!lastBatchResult) return;
+  const { timestamp, promptVersionName, models, rows } = lastBatchResult;
+  const hasExpected = rows.some(r => r.expected);
+
+  document.getElementById('batchResultMeta').textContent =
+    `${new Date(timestamp).toLocaleString('zh-TW')}  ·  ${promptVersionName || '暫存 Prompt'}`;
+
+  // Summary
+  const summary = document.getElementById('batchSummary');
+  summary.innerHTML = '';
+  if (hasExpected) {
+    models.forEach(model => {
+      const relevant = rows.filter(r => r.expected);
+      const passed = relevant.filter(r => r.modelResults[model]?.pass === true).length;
+      const pct = relevant.length ? Math.round(passed / relevant.length * 100) : null;
+      const cls = pct === null ? 'na' : pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'bad';
+      const item = document.createElement('div');
+      item.className = 'summary-item';
+      item.innerHTML = `<div class="summary-model-name">${model}</div>
+        <div class="summary-score ${cls}">${pct !== null ? pct + '%' : '—'}</div>
+        <div class="summary-detail">${passed}/${relevant.length} 通過</div>`;
+      summary.appendChild(item);
+    });
+  } else {
+    summary.style.display = 'none';
+  }
+
+  // Table head
+  const head = document.getElementById('batchResultHead');
+  head.innerHTML = '';
+  const hr = document.createElement('tr');
+  ['#', '題目', '暫存區', '修正指令', ...(hasExpected ? ['預期結果'] : []), ...models].forEach(h => {
+    const th = document.createElement('th'); th.textContent = h; hr.appendChild(th);
+  });
+  head.appendChild(hr);
+
+  // Table body
+  const body = document.getElementById('batchResultBody');
+  body.innerHTML = '';
+  rows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    [i+1, row.testCaseName, row.buffer, row.command, ...(hasExpected ? [row.expected || '—'] : [])].forEach(v => {
+      const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+    });
+    models.forEach(model => {
+      const td = document.createElement('td');
+      const res = row.modelResults[model];
+      if (!res) { td.className = 'cell-none'; td.textContent = '—'; }
+      else if (res.error) { td.className = 'cell-error'; td.textContent = '錯誤：' + res.error; }
+      else if (!res.success) { td.className = 'cell-none'; td.textContent = '無操作'; }
+      else if (res.pass === true) { td.className = 'cell-pass'; td.textContent = '✓ ' + res.resultText; }
+      else if (res.pass === false) {
+        td.className = 'cell-fail';
+        td.innerHTML = `✗ ${res.resultText}<br><span style="font-size:10px;color:#bbb">預期：${row.expected}</span>`;
+      } else { td.className = 'cell-neutral'; td.textContent = res.resultText; }
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+
+  document.getElementById('batchResultCard').style.display = '';
+}
+
+function exportBatchResults() {
+  if (!lastBatchResult) { alert('尚無批次測試結果'); return; }
+  const { timestamp, promptVersionName, models, rows } = lastBatchResult;
+  const hasExpected = rows.some(r => r.expected);
+  const q = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const headers = ['#','題目','暫存區','修正指令',
+    ...(hasExpected ? ['預期結果'] : []),
+    ...models.flatMap(m => hasExpected ? [m, m+'_通過'] : [m])];
+  const dataRows = rows.map((row, i) => {
+    const base = [i+1, row.testCaseName, row.buffer, row.command, ...(hasExpected ? [row.expected||''] : [])];
+    const modelCols = models.flatMap(m => {
+      const res = row.modelResults[m];
+      const result = !res ? '' : res.error ? `錯誤：${res.error}` : res.resultText;
+      if (hasExpected) return [result, res?.pass===true ? '✓' : res?.pass===false ? '✗' : ''];
+      return [result];
+    });
+    return [...base, ...modelCols];
+  });
+  const content = '﻿' + [headers.map(q).join(','), ...dataRows.map(r => r.map(q).join(','))].join('\n');
+  download(content, `batch-results-${new Date(timestamp).toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
+}
+
+// ── Utility ──
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Initialization ──
 document.addEventListener('DOMContentLoaded', async () => {
-  const savedApiKey = localStorage.getItem('apiKey');
+  const savedKey   = localStorage.getItem('apiKey');
   const savedModel = localStorage.getItem('modelSelect');
-  const savedInit = localStorage.getItem('initInput');
-  const savedCmd = localStorage.getItem('cmdInput');
+  const savedInit  = localStorage.getItem('initInput');
+  const savedCmd   = localStorage.getItem('cmdInput');
 
-  if (savedApiKey) document.getElementById('apiKey').value = savedApiKey;
+  if (savedKey)   document.getElementById('apiKey').value = savedKey;
   if (savedModel) document.getElementById('modelSelect').value = savedModel;
-  if (savedInit) { document.getElementById('initInput').value = savedInit; loadBuffer(); }
-  if (savedCmd) document.getElementById('cmdInput').value = savedCmd;
+  if (savedInit)  { document.getElementById('initInput').value = savedInit; loadBuffer(); }
+  if (savedCmd)   document.getElementById('cmdInput').value = savedCmd;
 
-  document.getElementById('apiKey').addEventListener('input', e => localStorage.setItem('apiKey', e.target.value));
+  document.getElementById('apiKey').addEventListener('input',    e => localStorage.setItem('apiKey', e.target.value));
   document.getElementById('modelSelect').addEventListener('change', e => localStorage.setItem('modelSelect', e.target.value));
-  document.getElementById('initInput').addEventListener('input', e => localStorage.setItem('initInput', e.target.value));
-  document.getElementById('cmdInput').addEventListener('input', e => localStorage.setItem('cmdInput', e.target.value));
-
-  // Auto-save draft prompt to localStorage when editing without an active version
+  document.getElementById('initInput').addEventListener('input',  e => localStorage.setItem('initInput', e.target.value));
+  document.getElementById('cmdInput').addEventListener('input',   e => localStorage.setItem('cmdInput', e.target.value));
   document.getElementById('promptEditor').addEventListener('input', e => {
     currentSystemPrompt = e.target.value;
     if (!activeVersionId) localStorage.setItem('customPrompt', e.target.value);
   });
 
-  // Load prompt versions
+  // Prompt versions
   loadPromptVersionsFromStorage();
   activeVersionId = localStorage.getItem('activeVersionId') || null;
-
-  const activeVersion = activeVersionId ? promptVersions.find(v => v.id === activeVersionId) : null;
-  if (activeVersion) {
-    currentSystemPrompt = activeVersion.content;
-    document.getElementById('promptEditor').value = activeVersion.content;
-    document.getElementById('versionName').value = activeVersion.name;
+  const activeVer = activeVersionId ? promptVersions.find(v => v.id === activeVersionId) : null;
+  if (activeVer) {
+    currentSystemPrompt = activeVer.content;
+    document.getElementById('promptEditor').value = activeVer.content;
+    document.getElementById('versionName').value = activeVer.name;
   } else {
-    // Fall back to legacy customPrompt or prompt.txt
-    const customPrompt = localStorage.getItem('customPrompt');
-    if (customPrompt) {
-      currentSystemPrompt = customPrompt;
-      document.getElementById('promptEditor').value = customPrompt;
-    } else {
+    const saved = localStorage.getItem('customPrompt');
+    if (saved) { currentSystemPrompt = saved; document.getElementById('promptEditor').value = saved; }
+    else {
       try {
-        const resp = await fetch('./prompt.txt');
-        const text = await resp.text();
-        currentSystemPrompt = text;
-        document.getElementById('promptEditor').value = text;
-      } catch (e) {
-        console.error('Failed to load default prompt:', e);
-      }
+        const text = await (await fetch('./prompt.txt')).text();
+        currentSystemPrompt = text; document.getElementById('promptEditor').value = text;
+      } catch { console.error('Failed to load prompt.txt'); }
     }
   }
+  renderVersionSelect(); updateActiveVersionBadge();
 
-  renderVersionSelect();
-  updateActiveVersionBadge();
+  // Test logs
+  loadTestLogsFromStorage(); updateLogCountUI();
 
-  // Load test logs
-  loadTestLogsFromStorage();
-  updateLogCountUI();
+  // Test cases
+  loadTestCasesFromStorage(); renderTestCaseTable();
+
+  // Model pills
+  renderModelPills();
 });
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js').catch(err => {
-      console.warn('Service Worker registration failed:', err);
-    });
+    navigator.serviceWorker.register('./service-worker.js').catch(e => console.warn('SW failed:', e));
   });
 }
 </script>
