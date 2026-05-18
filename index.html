@@ -108,6 +108,14 @@
   .add-row { display: grid; grid-template-columns: 120px 1fr 1.5fr 1.5fr auto; gap: 6px; align-items: center; margin-top: 10px; }
   .add-row input { padding: 7px 10px; border: 0.5px solid #ddd; border-radius: 6px; font-size: 13px; background: #fafafa; flex: unset; }
   @media (max-width: 680px) { .add-row { grid-template-columns: 1fr; } }
+
+  /* AI Analysis */
+  .analysis-block { font-size: 13px; color: #333; background: #f5f5f3; padding: 12px; border-radius: 8px; white-space: pre-wrap; line-height: 1.65; word-break: break-word; }
+  .analyze-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .loop-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #3C3489; background: #EEEDFE; border: 0.5px solid #AFA9EC; border-radius: 999px; padding: 3px 10px; }
+  .iter-history { display: flex; gap: 6px; align-items: center; font-size: 11px; color: #aaa; margin-bottom: 10px; flex-wrap: wrap; }
+  .iter-chip { padding: 2px 8px; border-radius: 4px; border: 0.5px solid #eee; background: #fafafa; }
+  .iter-chip.current { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; font-weight: 500; }
 </style>
 <script src="https://unpkg.com/pinyin-pro"></script>
 </head>
@@ -292,7 +300,23 @@
       <div class="progress-text" id="progressText">準備中...</div>
     </div>
 
-    <div style="display:flex; gap:8px; margin-top:12px">
+    <hr class="divider">
+    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:12px">
+      <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer">
+        <input type="checkbox" id="autoAnalyzeCheck" checked>
+        測試完成後自動 AI 分析
+      </label>
+      <div style="display:flex; align-items:center; gap:6px; font-size:13px">
+        <span style="color:#888">分析模型</span>
+        <select id="analysisModelSelect" style="font-size:13px; padding:5px 10px">
+          <option value="gpt-4.1">gpt-4.1</option>
+          <option value="gpt-4o">gpt-4o</option>
+          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+          <option value="gpt-4o-mini">gpt-4o-mini</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:4px">
       <button class="btn-primary" id="batchRunBtn" onclick="runBatchTest()">開始批次測試</button>
       <button id="batchCancelBtn" class="btn-danger" onclick="cancelBatch()" style="display:none">取消</button>
     </div>
@@ -313,6 +337,32 @@
         <thead id="batchResultHead"></thead>
         <tbody id="batchResultBody"></tbody>
       </table>
+    </div>
+    <!-- AI 分析優化 Card -->
+  <div class="card" id="analyzeCard" style="display:none">
+    <div class="analyze-card-header">
+      <div style="font-size:14px; font-weight:500">AI 分析優化</div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <button id="analyzeBtn" class="btn-primary" onclick="runAIAnalysis()">開始 AI 分析</button>
+      </div>
+    </div>
+
+    <div id="iterHistory" class="iter-history" style="display:none"></div>
+
+    <div id="analyzeContent" style="display:none">
+      <div class="label">失敗模式分析</div>
+      <div id="analyzeFailure" class="analysis-block" style="margin-bottom:12px"></div>
+
+      <div class="label">建議修改說明</div>
+      <div id="analyzeSuggestion" class="analysis-block" style="margin-bottom:12px"></div>
+
+      <div class="label">建議的新 Prompt（可直接編輯後採用）</div>
+      <textarea id="analyzeNewPrompt" class="prompt-editor" style="height:280px; border-color:#AFA9EC; background:#FAFBFF; margin-bottom:10px"></textarea>
+
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <button class="btn-primary" onclick="acceptAndContinue()">✓ 接受 — 儲存為新版本並進入下一輪</button>
+        <button onclick="rejectAnalysis()">放棄此建議</button>
+      </div>
     </div>
   </div>
 
@@ -971,7 +1021,17 @@ async function runBatchTest() {
   document.getElementById('batchRunBtn').disabled = false;
   document.getElementById('batchCancelBtn').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
-  if (!batchCancelled || lastBatchResult.rows.length > 0) renderBatchResults();
+
+  if (!batchCancelled || lastBatchResult.rows.length > 0) {
+    renderBatchResults();
+    document.getElementById('analyzeCard').style.display = '';
+    document.getElementById('analyzeContent').style.display = 'none';
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('analyzeBtn').textContent = '開始 AI 分析';
+    if (!batchCancelled && document.getElementById('autoAnalyzeCheck').checked) {
+      await runAIAnalysis();
+    }
+  }
 }
 
 function cancelBatch() {
@@ -1071,6 +1131,203 @@ function exportBatchResults() {
   });
   const content = '﻿' + [headers.map(q).join(','), ...dataRows.map(r => r.map(q).join(','))].join('\n');
   download(content, `batch-results-${new Date(timestamp).toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
+}
+
+// ── AI Analysis & Optimization Loop ──
+
+async function runAIAnalysis() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { alert('請先輸入 API key'); return; }
+  if (!lastBatchResult) { alert('請先執行批次測試'); return; }
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>分析中...';
+  document.getElementById('analyzeContent').style.display = 'none';
+
+  try {
+    const model = document.getElementById('analysisModelSelect').value;
+    const rawText = await callAnalysisAI(apiKey, model, lastBatchResult);
+    const { failure, suggestion, newPrompt } = parseAnalysisResponse(rawText);
+
+    document.getElementById('analyzeFailure').textContent = failure || '（無明顯失敗，模型整體表現良好）';
+    document.getElementById('analyzeSuggestion').textContent = suggestion || '（無修改建議）';
+    document.getElementById('analyzeNewPrompt').value = newPrompt || lastBatchResult.promptContent;
+
+    renderIterHistory();
+    document.getElementById('analyzeContent').style.display = '';
+  } catch (e) {
+    alert('AI 分析失敗：' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '重新 AI 分析';
+}
+
+async function callAnalysisAI(apiKey, model, batchResult) {
+  const { promptContent, models, rows } = batchResult;
+  const hasExpected = rows.some(r => r.expected);
+
+  let resultsText = '';
+  rows.forEach((row, i) => {
+    resultsText += `\n【題目 ${i + 1}：${row.testCaseName}】\n`;
+    resultsText += `  暫存區：${row.buffer}\n`;
+    resultsText += `  修正指令：${row.command}\n`;
+    if (row.expected) resultsText += `  預期結果：${row.expected}\n`;
+    models.forEach(m => {
+      const res = row.modelResults[m];
+      if (!res) return;
+      let status;
+      if (res.error)         status = `錯誤（${res.error}）`;
+      else if (!res.success) status = `未呼叫任何 function（無操作）`;
+      else if (res.pass === true)  status = `✓ 正確 → ${res.resultText}`;
+      else if (res.pass === false) status = `✗ 錯誤 → ${res.resultText}（預期：${row.expected}）`;
+      else                   status = `回應 → ${res.resultText}`;
+      resultsText += `  [${m}] ${status}\n`;
+      if (res.calls?.length) {
+        resultsText += `    calls: ${res.calls.map(c => `${c.name}(${JSON.stringify(c.args)})`).join(', ')}\n`;
+      }
+    });
+  });
+
+  const systemPrompt = `你是一個 Prompt 工程師，專門優化「語音輸入後處理系統」的 LLM system prompt。
+
+這個系統讓語音辨識後的文字能被精準修正。它接收：
+1. 暫存區（以 index 標記每個字，如 [0:我][1:想][2:吃]）
+2. 修正描述（語音辨識轉錄，可能含同音錯字）
+3. 語音輔助資訊（拼音）
+
+然後呼叫 replace / insert / swap 三種 function 做最小範圍的精準修正。
+
+你的任務是分析批次測試結果，找出 prompt 的不足，輸出改進後的完整 prompt。
+
+嚴格按以下格式輸出：
+
+## 失敗模式分析
+（說明哪些測試失敗，失敗的共同原因是什麼，模型在何種情況下會出錯）
+
+## 建議修改說明
+（具體說明你改了哪些部分、為何這樣改能解決問題）
+
+## 優化後的完整 Prompt
+（完整輸出，不可省略、截斷，可直接複製使用）`;
+
+  const userContent =
+    `【目前的系統 Prompt】\n\`\`\`\n${promptContent}\n\`\`\`\n\n【批次測試結果】\n${resultsText}\n\n請分析並輸出優化後的完整 Prompt。`;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userContent }
+      ]
+    })
+  });
+
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.choices[0].message.content;
+}
+
+function parseAnalysisResponse(text) {
+  const result = { failure: '', suggestion: '', newPrompt: '' };
+  const parts = text.split(/\n##\s+/);
+  parts.forEach(part => {
+    const firstLine = part.split('\n')[0];
+    const body = part.replace(/^[^\n]*\n/, '').trim();
+    if (/失敗|分析/.test(firstLine))            result.failure    = body;
+    else if (/建議|修改說明/.test(firstLine))   result.suggestion = body;
+    else if (/優化|完整|Prompt/.test(firstLine)) {
+      // Strip code fences if the AI wrapped the prompt in backticks
+      result.newPrompt = body.replace(/^```[^\n]*\n?/, '').replace(/\n?```\s*$/, '').trim();
+    }
+  });
+  // Fallback: extract from code block anywhere in the text
+  if (!result.newPrompt) {
+    const m = text.match(/```(?:[^\n]*\n)([\s\S]*?)```/);
+    if (m) result.newPrompt = m[1].trim();
+  }
+  return result;
+}
+
+// Optimization iteration history (session-only, not persisted)
+let iterationHistory = [];
+
+function renderIterHistory() {
+  const el = document.getElementById('iterHistory');
+  if (!iterationHistory.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = '優化歷程：';
+  iterationHistory.forEach((item, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'iter-chip' + (i === iterationHistory.length - 1 ? ' current' : '');
+    chip.textContent = item.versionName + (item.passRate !== null ? `  ${item.passRate}%` : '');
+    el.appendChild(chip);
+  });
+}
+
+function computeOverallPassRate(batchResult) {
+  const hasExpected = batchResult.rows.some(r => r.expected);
+  if (!hasExpected) return null;
+  let total = 0, passed = 0;
+  batchResult.rows.forEach(row => {
+    if (!row.expected) return;
+    batchResult.models.forEach(m => {
+      total++;
+      if (row.modelResults[m]?.pass === true) passed++;
+    });
+  });
+  return total > 0 ? Math.round(passed / total * 100) : null;
+}
+
+async function acceptAndContinue() {
+  const newPrompt = document.getElementById('analyzeNewPrompt').value.trim();
+  if (!newPrompt) { alert('建議 Prompt 不能為空'); return; }
+
+  const roundNum = promptVersions.filter(v => v.name.startsWith('AI優化')).length + 1;
+  const versionName = `AI優化-r${roundNum}`;
+
+  if (promptVersions.length >= 5) {
+    if (!confirm('版本數已達上限（5 個）。確定要刪除最舊的版本以騰出空間嗎？')) return;
+    promptVersions.shift();
+  }
+
+  // Record current result in history before switching
+  if (lastBatchResult) {
+    iterationHistory.push({
+      versionName: lastBatchResult.promptVersionName || '暫存',
+      passRate: computeOverallPassRate(lastBatchResult)
+    });
+  }
+
+  const ver = {
+    id: 'v_' + Date.now(), name: versionName,
+    content: newPrompt, createdAt: new Date().toISOString()
+  };
+  promptVersions.push(ver);
+  activeVersionId = ver.id;
+  localStorage.setItem('activeVersionId', ver.id);
+  savePromptVersionsToStorage();
+  currentSystemPrompt = newPrompt;
+  document.getElementById('promptEditor').value = newPrompt;
+  document.getElementById('versionName').value = versionName;
+  renderVersionSelect();
+  updateActiveVersionBadge();
+
+  document.getElementById('batchVersionSelect').value = ver.id;
+  document.getElementById('analyzeContent').style.display = 'none';
+  document.getElementById('analyzeCard').style.display = 'none';
+
+  // Auto-run next batch (auto-analyze will follow if checkbox is on)
+  await runBatchTest();
+}
+
+function rejectAnalysis() {
+  document.getElementById('analyzeContent').style.display = 'none';
+  document.getElementById('analyzeBtn').textContent = '開始 AI 分析';
 }
 
 // ── Utility ──
