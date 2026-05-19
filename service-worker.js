@@ -1,4 +1,4 @@
-const CACHE_NAME = 'voice-test-v1';
+const CACHE_NAME = 'voice-test-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
