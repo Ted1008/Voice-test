@@ -149,6 +149,12 @@
       <option value="gpt-4o">gpt-4o</option>
     </select>
   </div>
+  <div class="row">
+    <select id="engineSelect" style="flex:1">
+      <option value="fc">修正引擎：Function Calling（index 精準操作）</option>
+      <option value="rewrite">修正引擎：整句改寫＋自動 diff（推薦輕量模型）</option>
+    </select>
+  </div>
   <div class="version-bar">
     使用中 Prompt：<span id="activeVersionBadge" class="version-pill unnamed">未命名（暫存）</span>
   </div>
@@ -455,6 +461,58 @@ const TOOLS = [
   }
 ];
 
+// ── Sound-match table (deterministic pinyin pre-matching done in frontend) ──
+// 把「指令字 ↔ 暫存區字」的同音對應先算好給模型，省掉模型自己做拼音比對的推理負擔
+function buildSoundMatchTable(bufferText, command) {
+  const stripTone = s => s.replace(/\d/g, '');
+  const bufSyl = bufferText.split('').map((ch, i) => ({ i, ch, py: pinyin(ch, { toneType: 'num' }) }));
+  const lines = [];
+  const seen = new Set();
+  for (const ch of command) {
+    if (!/[一-鿿]/.test(ch) || seen.has(ch)) continue;
+    seen.add(ch);
+    const py = pinyin(ch, { toneType: 'num' });
+    const exact = bufSyl.filter(b => b.py === py);
+    const near  = bufSyl.filter(b => b.py !== py && stripTone(b.py) === stripTone(py));
+    if (exact.length || near.length) {
+      const parts = [
+        ...exact.map(b => `[${b.i}:${b.ch}] 同音`),
+        ...near.map(b => `[${b.i}:${b.ch}](${b.py}) 音近(聲調不同)`)
+      ];
+      lines.push(`指令「${ch}」(${py}) ↔ 暫存區 ${parts.join('、')}`);
+    }
+  }
+  return lines.length ? lines.join('\n') : '（指令中沒有與暫存區同音的字）';
+}
+
+// ── Rewrite engine: model outputs the corrected sentence, frontend computes the diff ──
+function getEngine() {
+  return document.getElementById('engineSelect')?.value || 'fc';
+}
+
+let rewritePromptCache = '';
+async function getRewritePrompt() {
+  if (!rewritePromptCache) {
+    rewritePromptCache = await (await fetch('./prompt-rewrite.txt')).text();
+  }
+  return rewritePromptCache;
+}
+
+// Convert old → new sentence into minimal tool calls (common prefix/suffix trimming)
+function diffToCalls(oldText, newText) {
+  if (newText === oldText) return [];
+  const o = [...oldText], n = [...newText];
+  let p = 0;
+  while (p < o.length && p < n.length && o[p] === n[p]) p++;
+  let s = 0;
+  while (s < o.length - p && s < n.length - p && o[o.length - 1 - s] === n[n.length - 1 - s]) s++;
+  const mid = n.slice(p, n.length - s).join('');
+  if (o.length - 1 - s < p) {
+    return [{ name: 'insert', args: { index: p, text: mid } }];
+  }
+  return [{ name: 'replace', args: { start_index: p, end_index: o.length - 1 - s, new_text: mid } }];
+}
+
 // ── Shared API Helper ──
 async function callOpenAI(apiKey, model, systemPrompt, bufferText, command, signal) {
   const toks = bufferText.split('').map((ch, i) => ({ i, text: ch }));
@@ -464,10 +522,36 @@ async function callOpenAI(apiKey, model, systemPrompt, bufferText, command, sign
   const cmdPinyin = getPinyin(command);
   const indexedPinyin = Array.from(indexed.matchAll(/\[(\d+):(.+?)\]/g))
     .map(m => `[${m[1]}:${getPinyin(m[2])}]`).join('');
+  const matchTable = buildSoundMatchTable(bufferText, command);
 
   const userContent =
     `【暫存區】\n${indexed}\n\n【修正描述】\n${command}\n\n` +
-    `【語音輔助資訊（供發音比對參考）】\n- 修正描述拼音：${cmdPinyin}\n- 暫存區拼音：${indexedPinyin}`;
+    `【語音輔助資訊（供發音比對參考）】\n- 修正描述拼音：${cmdPinyin}\n- 暫存區拼音：${indexedPinyin}\n\n` +
+    `【同音定位表（系統已比對，定位時優先採用）】\n${matchTable}`;
+
+  const engine = getEngine();
+
+  if (engine === 'rewrite') {
+    const rewriteSystem = await getRewritePrompt();
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: rewriteSystem },
+          { role: 'user',   content: userContent }
+        ]
+      })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    const rewriteText = (data.choices?.[0]?.message?.content || '')
+      .trim().replace(/^["「『]+|["」』]+$/g, '');
+    const calls = diffToCalls(bufferText, rewriteText);
+    return { indexed, cmdPinyin, indexedPinyin, calls, rewriteText, engine };
+  }
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -502,7 +586,7 @@ async function callOpenAI(apiKey, model, systemPrompt, bufferText, command, sign
     }
   } : c);
 
-  return { indexed, cmdPinyin, indexedPinyin, calls };
+  return { indexed, cmdPinyin, indexedPinyin, calls, engine };
 }
 
 // Apply tool calls to a plain-text buffer without touching global state
@@ -696,9 +780,11 @@ function renderTestLogs() {
     const toolCallStr = entry.toolCalls?.length
       ? entry.toolCalls.map(c => `${c.name}(${JSON.stringify(c.args)})`).join('\n')
       : '（無 tool call）';
-    const promptTagHtml = entry.promptVersionName
+    const promptTagHtml = (entry.engine === 'rewrite'
+      ? `<span class="tag tag-draft">整句改寫</span>`
+      : '') + (entry.promptVersionName
       ? `<span class="tag tag-prompt">${entry.promptVersionName}</span>`
-      : `<span class="tag tag-draft">暫存</span>`;
+      : `<span class="tag tag-draft">暫存</span>`);
     const resultClass = entry.success ? 'ok' : 'err';
     const resultDisplay = entry.error ? `✗ ${entry.error}` : `${entry.success ? '✓' : '✗'} ${entry.resultText || '—'}`;
     const promptHtml = (entry.promptContent || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -865,12 +951,17 @@ async function runCorrection() {
     }
     logEntry.promptContent = systemPrompt;
 
-    const { cmdPinyin, indexedPinyin, calls } = await callOpenAI(apiKey, model, systemPrompt, bufferText, cmd);
+    const { cmdPinyin, indexedPinyin, calls, rewriteText, engine } = await callOpenAI(apiKey, model, systemPrompt, bufferText, cmd);
+    logEntry.engine = engine;
     log('【拼音輔助資訊】', 'info');
     log('  指令拼音：' + cmdPinyin, 'dim');
     log('  暫存區拼音：' + indexedPinyin, 'dim');
+    if (engine === 'rewrite') log('改寫輸出：' + rewriteText, 'info');
 
-    if (!calls.length) { log('OpenAI 沒有回傳 function call', 'err'); logEntry.error = '沒有回傳 function call'; }
+    if (!calls.length) {
+      if (engine === 'rewrite' && rewriteText === bufferText) { log('改寫結果與原句相同（無需修改）', 'ok'); logEntry.success = true; }
+      else { log('OpenAI 沒有回傳 function call', 'err'); logEntry.error = '沒有回傳 function call'; }
+    }
     else {
       log(`OpenAI 回傳 ${calls.length} 個 function call：`, 'info');
       calls.forEach(c => log(`  ${c.name}(${JSON.stringify(c.args)})`, 'dim'));
@@ -993,6 +1084,7 @@ async function runBatchTest() {
   const activeVer = promptVersionId ? promptVersions.find(v => v.id === promptVersionId) : null;
   lastBatchResult = {
     id: 'batch_' + Date.now(), timestamp: new Date().toISOString(),
+    engine: getEngine(),
     promptVersionId, promptVersionName: activeVer?.name || null, promptContent,
     models, rows: []
   };
@@ -1024,11 +1116,13 @@ async function runBatchTest() {
 
   if (!batchCancelled || lastBatchResult.rows.length > 0) {
     renderBatchResults();
-    document.getElementById('analyzeCard').style.display = '';
+    // AI 優化迴圈僅針對 Function Calling 引擎的 prompt（改寫引擎使用獨立的 prompt-rewrite.txt）
+    const isRewrite = lastBatchResult.engine === 'rewrite';
+    document.getElementById('analyzeCard').style.display = isRewrite ? 'none' : '';
     document.getElementById('analyzeContent').style.display = 'none';
     document.getElementById('analyzeBtn').disabled = false;
     document.getElementById('analyzeBtn').textContent = '開始 AI 分析';
-    if (!batchCancelled && document.getElementById('autoAnalyzeCheck').checked) {
+    if (!batchCancelled && !isRewrite && document.getElementById('autoAnalyzeCheck').checked) {
       await runAIAnalysis();
     }
   }
@@ -1053,7 +1147,8 @@ function renderBatchResults() {
   const hasExpected = rows.some(r => r.expected);
 
   document.getElementById('batchResultMeta').textContent =
-    `${new Date(timestamp).toLocaleString('zh-TW')}  ·  ${promptVersionName || '暫存 Prompt'}`;
+    `${new Date(timestamp).toLocaleString('zh-TW')}  ·  ` +
+    (lastBatchResult.engine === 'rewrite' ? '整句改寫引擎（prompt-rewrite.txt）' : (promptVersionName || '暫存 Prompt'));
 
   // Summary
   const summary = document.getElementById('batchSummary');
@@ -1341,18 +1436,21 @@ function download(content, filename, mime) {
 
 // ── Initialization ──
 document.addEventListener('DOMContentLoaded', async () => {
-  const savedKey   = localStorage.getItem('apiKey');
-  const savedModel = localStorage.getItem('modelSelect');
-  const savedInit  = localStorage.getItem('initInput');
-  const savedCmd   = localStorage.getItem('cmdInput');
+  const savedKey    = localStorage.getItem('apiKey');
+  const savedModel  = localStorage.getItem('modelSelect');
+  const savedInit   = localStorage.getItem('initInput');
+  const savedCmd    = localStorage.getItem('cmdInput');
+  const savedEngine = localStorage.getItem('engineSelect');
 
-  if (savedKey)   document.getElementById('apiKey').value = savedKey;
-  if (savedModel) document.getElementById('modelSelect').value = savedModel;
-  if (savedInit)  { document.getElementById('initInput').value = savedInit; loadBuffer(); }
-  if (savedCmd)   document.getElementById('cmdInput').value = savedCmd;
+  if (savedKey)    document.getElementById('apiKey').value = savedKey;
+  if (savedModel)  document.getElementById('modelSelect').value = savedModel;
+  if (savedInit)   { document.getElementById('initInput').value = savedInit; loadBuffer(); }
+  if (savedCmd)    document.getElementById('cmdInput').value = savedCmd;
+  if (savedEngine) document.getElementById('engineSelect').value = savedEngine;
 
   document.getElementById('apiKey').addEventListener('input',    e => localStorage.setItem('apiKey', e.target.value));
   document.getElementById('modelSelect').addEventListener('change', e => localStorage.setItem('modelSelect', e.target.value));
+  document.getElementById('engineSelect').addEventListener('change', e => localStorage.setItem('engineSelect', e.target.value));
   document.getElementById('initInput').addEventListener('input',  e => localStorage.setItem('initInput', e.target.value));
   document.getElementById('cmdInput').addEventListener('input',   e => localStorage.setItem('cmdInput', e.target.value));
   document.getElementById('promptEditor').addEventListener('input', e => {
